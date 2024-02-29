@@ -1,6 +1,4 @@
-using System;
-
-namespace GameClient.AI
+namespace SharedCode.Core
 {
     public class CachedRandom
     {

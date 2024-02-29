@@ -40,8 +40,10 @@ namespace GameClient.Core
 
         public void DrawRectangle(
             Color color,
-            Vector2 position,
-            Vector2 size,
+            float x,
+            float y,
+            float width,
+            float height,
             Vector2? origin = null)
         {
             if (origin == null)
@@ -49,12 +51,12 @@ namespace GameClient.Core
 
             m_SpriteBatch.Draw(
                 m_EmptyColor,
-                position,
+                new Vector2(x, y),
                 null,
                 color,
                 0,
                 (Vector2)origin,
-                size,
+                new Vector2(width, height),
                 SpriteEffects.None,
                 0f);
         }
@@ -62,7 +64,8 @@ namespace GameClient.Core
         public void DrawSprite(
             Texture2D texture,
             float scale,
-            Vector2 position,
+            float x,
+            float y,
             Vector2? origin = null,
             Color? color = null)
         {
@@ -76,7 +79,7 @@ namespace GameClient.Core
 
             m_SpriteBatch.Draw(
                 texture,
-                position,
+                new Vector2(x, y),
                 frame,
                 spriteColor,
                 0,
