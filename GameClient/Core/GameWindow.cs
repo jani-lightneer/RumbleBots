@@ -174,7 +174,7 @@ namespace GameClient.Core
                 character.Health = 100;
                 character.Position = position;
                 character.Direction = Vector2.Zero;
-                character.AreaRadius = BOT_AREA_RADIUS;
+                // character.AreaRadius = BOT_AREA_RADIUS;
 
                 // Every character is bot
                 m_BotManager.Bots[i].Active = true;
