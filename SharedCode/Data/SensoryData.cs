@@ -1,3 +1,5 @@
+using SharedCode.Core;
+
 namespace SharedCode.Data
 {
     public struct SensoryDataConfig
@@ -8,6 +10,7 @@ namespace SharedCode.Data
 
     public class SensoryData
     {
+        public Vector2 GameAreaCenter;
         public float GameAreaRadius;
 
         private readonly Memory<CharacterDataEntry> m_CharacterDataEntries;

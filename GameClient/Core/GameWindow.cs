@@ -3,13 +3,22 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using SharedCode.AI;
+using SharedCode.Core;
 using SharedCode.Data;
 using Vector2 = SharedCode.Core.Vector2;
 
 namespace GameClient.Core
 {
+    public class ExternalForce
+    {
+        public float Force;
+        public Vector2 Direction;
+    }
+
     public class GameWindow : Game
     {
+        private const int SPEED_MULTIPLIER = 1;
+
         private const int SCREEN_WIDTH = 1000;
         private const int SCREEN_HEIGHT = 1000;
 
@@ -19,7 +28,7 @@ namespace GameClient.Core
         private const int BOT_AREA_RADIUS = 16;
         private const int PROJECTILE_AREA_RADIUS = 4;
 
-        private const bool DISABLE_SKILL_USE = true;
+        private const bool DISABLE_SKILL_USE = false;
 
         private readonly AssetLoader m_AssetLoader;
         private readonly RenderContext m_RenderContext;
@@ -33,6 +42,9 @@ namespace GameClient.Core
         private Texture2D m_GameArea;
 
         private ObjectPool<CharacterDataEntry> m_Characters;
+        private ExternalForce[] m_CharacterExternalForces;
+        private float[] m_CharacterShieldBuffs;
+        private float[] m_CharacterHasteBuffs;
         private Vector2[] m_CharacterMoveTargets;
         private SkillCooldownTimer[] m_SkillCooldownTimers;
         private Texture2D[] m_CharacterTextures;
@@ -88,48 +100,62 @@ namespace GameClient.Core
 
             m_GameAreaRadius = GAME_AREA_SIZE / 2f;
             m_GameArea = m_RenderContext.CreateTexture(GAME_AREA_SIZE, GAME_AREA_SIZE);
-            Geometry.FillCircle(m_GameArea, Color.White);
+            Circle.Generate(m_GameArea, Color.White);
 
             m_Characters = new ObjectPool<CharacterDataEntry>(maxCharacterCount);
-            m_CharacterMoveTargets = new Vector2[m_Characters.MaxCapacity];
-            m_SkillCooldownTimers = new SkillCooldownTimer[m_Characters.MaxCapacity];
-            for (int i = 0; i < m_SkillCooldownTimers.Length; i++)
+            m_CharacterExternalForces = new ExternalForce[maxCharacterCount];
+            m_CharacterShieldBuffs = new float[maxCharacterCount];
+            m_CharacterHasteBuffs = new float[maxCharacterCount];
+            m_CharacterMoveTargets = new Vector2[maxCharacterCount];
+            m_SkillCooldownTimers = new SkillCooldownTimer[maxCharacterCount];
+            m_CharacterTextures = new Texture2D[maxCharacterCount];
+
+            for (int i = 0; i < maxCharacterCount; i++)
+            {
+                m_CharacterExternalForces[i] = new ExternalForce();
+                m_CharacterMoveTargets[i] = Vector2.Zero;
                 m_SkillCooldownTimers[i] = new SkillCooldownTimer();
 
-            m_CharacterTextures = new Texture2D[m_Characters.MaxCapacity];
-            for (int i = 0; i < m_CharacterTextures.Length; i++)
-            {
                 int textureSize = BOT_AREA_RADIUS * 2;
                 m_CharacterTextures[i] = m_RenderContext.CreateTexture(textureSize, textureSize);
-                Geometry.FillCircle(m_CharacterTextures[i], Color.White);
+                Circle.Generate(m_CharacterTextures[i], Color.White);
             }
 
             SpawnCharacters(maxCharacterCount);
 
             m_Projectiles = new ObjectPool<ProjectileDataEntry>(maxProjectileCount);
-            m_ProjectileTextures = new Texture2D[m_Projectiles.MaxCapacity];
+            m_ProjectileTextures = new Texture2D[maxProjectileCount];
             for (int i = 0; i < m_ProjectileTextures.Length; i++)
             {
                 int textureSize = PROJECTILE_AREA_RADIUS * 2;
                 m_ProjectileTextures[i] = m_RenderContext.CreateTexture(textureSize, textureSize);
-                Geometry.FillCircle(m_ProjectileTextures[i], Color.White);
+                Circle.Generate(m_ProjectileTextures[i], Color.White);
             }
 
-            m_ProjectileDisposer = new ItemDisposer(m_Projectiles.MaxCapacity);
+            m_ProjectileDisposer = new ItemDisposer(maxProjectileCount);
         }
 
-        private void BotMove(int clientIndex, Vector2 target)
+        private bool BotMove(int clientIndex, Vector2 target)
         {
+            if (m_CharacterExternalForces[clientIndex].Force > 0)
+                return false;
+
             ref var character = ref m_Characters.Get(clientIndex);
             m_CharacterMoveTargets[clientIndex] = target;
 
             float distance = Distance(character.Position, target);
             if (distance <= 0)
-                return;
+                return false;
 
-            const float MAX_SPEED = 30f / TICK_RATE;
+            const float MAX_SPEED = 45f / TICK_RATE;
             float move = Math.Min(distance, MAX_SPEED) / distance;
+
+            if (m_CharacterHasteBuffs[clientIndex] > 0)
+                move *= 2;
+
             character.Position = Lerp(character.Position, target, move);
+
+            return true;
         }
 
         private bool BotUseSkill(int clientIndex, SkillGroup skillGroup, Vector2 direction)
@@ -140,19 +166,30 @@ namespace GameClient.Core
             if (!m_SkillCooldownTimers[clientIndex].Ready(skillGroup))
                 return false;
 
-            ref var character = ref m_Characters.Get(clientIndex);
-            ref var projectile = ref m_Projectiles.Allocate(out int index);
-            projectile.Owner = clientIndex;
-            projectile.Position = character.Position;
-            projectile.Direction = direction;
-            projectile.AreaRadius = PROJECTILE_AREA_RADIUS;
-
             m_SkillCooldownTimers[clientIndex].UseSkill(skillGroup);
 
-            const float projectileLifetime = 4000;
-            m_ProjectileDisposer.Add(index, projectileLifetime);
+            switch (skillGroup)
+            {
+                case SkillGroup.Projectile:
+                    ref var character = ref m_Characters.Get(clientIndex);
+                    ref var projectile = ref m_Projectiles.Allocate(out int index);
+                    projectile.Owner = clientIndex;
+                    projectile.Position = character.Position;
+                    projectile.Direction = direction;
+                    projectile.AreaRadius = PROJECTILE_AREA_RADIUS;
 
-            return true;
+                    const float projectileLifetime = 4000;
+                    m_ProjectileDisposer.Add(index, projectileLifetime);
+                    return true;
+                case SkillGroup.Block:
+                    m_CharacterShieldBuffs[clientIndex] = 2000f;
+                    return true;
+                case SkillGroup.Movement:
+                    m_CharacterHasteBuffs[clientIndex] = 2000f;
+                    return true;
+                default:
+                    throw new NotImplementedException();
+            }
         }
 
         private void SpawnCharacters(int characterCount)
@@ -171,7 +208,7 @@ namespace GameClient.Core
 
                 ref var character = ref m_Characters.Allocate(out _);
                 character.ClientIndex = i;
-                character.Health = 100;
+                character.Health = 4;
                 character.Position = position;
                 character.Direction = Vector2.Zero;
                 // character.AreaRadius = BOT_AREA_RADIUS;
@@ -189,21 +226,95 @@ namespace GameClient.Core
 
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
 
+            for (int i = 0; i < SPEED_MULTIPLIER; i++)
+                UpdateTick(deltaTime);
+
+            base.Update(gameTime);
+        }
+
+        private void UpdateTick(float deltaTime)
+        {
             for (int i = 0; i < m_SkillCooldownTimers.Length; i++)
                 m_SkillCooldownTimers[i].Update(deltaTime);
 
-            m_Projectiles.ForEach((int _, ref ProjectileDataEntry projectile) =>
+            m_Projectiles.ForEach((int index, ref ProjectileDataEntry projectile) =>
             {
-                const float PROJECTILE_SPEED = 200f / TICK_RATE;
+                const float PROJECTILE_SPEED = 300f / TICK_RATE;
                 projectile.Position.X += projectile.Direction.X * PROJECTILE_SPEED;
                 projectile.Position.Y += projectile.Direction.Y * PROJECTILE_SPEED;
+
+                if (ProjectileCollision(ref projectile, out int characterIndex))
+                {
+                    if (m_CharacterShieldBuffs[characterIndex] > 0)
+                    {
+                        projectile.Owner = characterIndex;
+                        projectile.Direction.X *= -1;
+                        projectile.Direction.Y *= -1;
+
+                        // Move extra step just in case
+                        projectile.Position.X += projectile.Direction.X * PROJECTILE_SPEED;
+                        projectile.Position.Y += projectile.Direction.Y * PROJECTILE_SPEED;
+                        return;
+                    }
+
+                    ref var character = ref m_Characters.Get(characterIndex);
+                    character.Health--;
+
+                    m_CharacterExternalForces[characterIndex].Force = 50f;
+                    m_CharacterExternalForces[characterIndex].Direction = projectile.Direction;
+
+                    m_ProjectileDisposer.Dispose(index);
+                }
             });
 
             m_ProjectileDisposer.Update(deltaTime, m_Projectiles.Free);
 
-            const float DISSOLVE_SPEED = 15f / TICK_RATE;
+            /*
+            var mouseState = Mouse.GetState();
+            var mousePosition = new Vector2(mouseState.X, mouseState.Y);
+            */
+
+            m_Characters.ForEach((int index, ref CharacterDataEntry character) =>
+            {
+                /*
+                if (character.Health >= 0)
+                {
+                    m_Debug[index] = Geometry.LineToCircleCollision(
+                        m_ScreenCenter,
+                        mousePosition,
+                        character.Position,
+                        BOT_AREA_RADIUS);
+                }
+                */
+
+                m_CharacterShieldBuffs[index] -= deltaTime;
+                if (m_CharacterShieldBuffs[index] < 0)
+                    m_CharacterShieldBuffs[index] = 0;
+
+                m_CharacterHasteBuffs[index] -= deltaTime;
+                if (m_CharacterHasteBuffs[index] < 0)
+                    m_CharacterHasteBuffs[index] = 0;
+
+                if (m_CharacterExternalForces[index].Force > 0)
+                {
+                    float force = 300f / TICK_RATE;
+                    m_CharacterExternalForces[index].Force -= force;
+
+                    if (m_CharacterExternalForces[index].Force < 0)
+                    {
+                        force += m_CharacterExternalForces[index].Force;
+                        m_CharacterExternalForces[index].Force = 0;
+                    }
+
+                    character.Position.X += force * m_CharacterExternalForces[index].Direction.X;
+                    character.Position.Y += force * m_CharacterExternalForces[index].Direction.Y;
+                }
+            });
+
+            const float DISSOLVE_SPEED = 5f / TICK_RATE;
             m_GameAreaRadius -= DISSOLVE_SPEED;
 
+            m_BotManager.SensoryData.GameAreaCenter = m_ScreenCenter;
             m_BotManager.SensoryData.GameAreaRadius = m_GameAreaRadius;
             var characters = m_BotManager.SensoryData.WriteCharacters(m_Characters.Count);
             m_Characters.CopyTo(characters);
@@ -213,8 +324,27 @@ namespace GameClient.Core
             // Console.WriteLine(m_Projectiles.Count);
 
             m_BotManager.Update(deltaTime);
+        }
 
-            base.Update(gameTime);
+        private bool ProjectileCollision(ref ProjectileDataEntry projectile, out int characterIndex)
+        {
+            int collisionIndex = -1;
+
+            int ownerIndex = projectile.Owner;
+            var position = projectile.Position;
+
+            // Not fastest way to do this
+            m_Characters.ForEach((int index, ref CharacterDataEntry character) =>
+            {
+                if (ownerIndex == index || character.Health <= 0)
+                    return;
+
+                if (CircleContains(character.Position, BOT_AREA_RADIUS, position))
+                    collisionIndex = index;
+            });
+
+            characterIndex = collisionIndex;
+            return collisionIndex != -1;
         }
 
         protected override void Draw(GameTime gameTime)
@@ -224,6 +354,7 @@ namespace GameClient.Core
 
             float gameAreaScale = m_GameAreaRadius / (GAME_AREA_SIZE * 0.5f);
             var gameAreaColor = new Color(0, 0, 0, 60);
+
             m_RenderContext.DrawSprite(
                 m_GameArea,
                 gameAreaScale,
@@ -233,12 +364,21 @@ namespace GameClient.Core
 
             m_Characters.ForEach((int index, ref CharacterDataEntry character) =>
             {
+                if (character.Health <= 0)
+                    return;
+
                 var texture = m_CharacterTextures[index];
                 float x = character.Position.X;
                 float y = character.Position.Y;
 
-                m_RenderContext.DrawSprite(texture, 1, x, y, color: CharacterColor(index));
-                m_RenderContext.DrawGlyph(m_Font, 1, index, x, y);
+                var characterColor = CharacterColor(255);
+                characterColor.R = m_CharacterShieldBuffs[index] > 0 ? (byte)100 : (byte)240;
+                m_RenderContext.DrawSprite(texture, 1, x, y, color: characterColor);
+
+                var glyphColor = new Color(255, 255, 255);
+                glyphColor.R = m_CharacterHasteBuffs[index] > 0 ? (byte)100 : (byte)255;
+                glyphColor.B = m_CharacterHasteBuffs[index] > 0 ? (byte)100 : (byte)255;
+                m_RenderContext.DrawGlyph(m_Font, 1, index, x, y, color: glyphColor);
             });
 
             m_Projectiles.ForEach((int index, ref ProjectileDataEntry projectile) =>
@@ -247,21 +387,37 @@ namespace GameClient.Core
                 float x = projectile.Position.X;
                 float y = projectile.Position.Y;
 
-                m_RenderContext.DrawSprite(texture, 1, x, y, color: Color.Black);
+                var projectileColor = new Color(200, 200, 200);
+                m_RenderContext.DrawSprite(texture, 1, x, y, color: projectileColor);
             });
 
             for (int i = 0; i < m_CharacterMoveTargets.Length; i++)
             {
+                ref var character = ref m_Characters.Get(i);
+                if (character.Health <= 0)
+                    continue;
+
                 var moveTarget = m_CharacterMoveTargets[i];
                 const float size = 22;
 
-                m_RenderContext.DrawRectangle(CharacterColor(i), moveTarget.X, moveTarget.Y, size, size);
-                m_RenderContext.DrawGlyph(m_Font, 1, i, moveTarget.X, moveTarget.Y);
+                const byte alpha = 60;
+                var glyphColor = new Color((byte)255, (byte)255, (byte)255, alpha);
+
+                m_RenderContext.DrawRectangle(CharacterColor(alpha), moveTarget.X, moveTarget.Y, size, size);
+                m_RenderContext.DrawGlyph(m_Font, 1, i, moveTarget.X, moveTarget.Y, color: glyphColor);
             }
 
             m_RenderContext.End();
 
             base.Draw(gameTime);
+        }
+
+        private bool CircleContains(Vector2 circlePoint, float circleRadius, Vector2 point)
+        {
+            // (x - center_x)² + (y - center_y)² < radius²
+            return (point.X - circlePoint.X) * (point.X - circlePoint.X)
+                   + (point.Y - circlePoint.Y) * (point.Y - circlePoint.Y)
+                   < circleRadius * circleRadius;
         }
 
         private float Distance(Vector2 a, Vector2 b)
@@ -280,10 +436,9 @@ namespace GameClient.Core
             };
         }
 
-        private Color CharacterColor(int index)
+        private Color CharacterColor(byte alpha)
         {
-            // TODO
-            return new Color(240, 170, 170);
+            return new Color((byte)240, (byte)170, (byte)170, alpha);
         }
     }
 }

@@ -3,7 +3,7 @@ using SharedCode.Data;
 
 namespace SharedCode.AI
 {
-    public delegate void MoveHandler(
+    public delegate bool MoveHandler(
         int clientIndex,
         Vector2 target);
 

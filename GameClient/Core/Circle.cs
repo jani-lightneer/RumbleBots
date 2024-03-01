@@ -4,9 +4,9 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace GameClient.Core
 {
-    public static class Geometry
+    public static class Circle
     {
-        public static void FillCircle(Texture2D texture, Color color)
+        public static void Generate(Texture2D texture, Color color)
         {
             int textureWidth = texture.Width;
             int textureHeight = texture.Height;

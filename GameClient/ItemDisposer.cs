@@ -43,5 +43,10 @@ namespace GameClient
             m_ItemCounters[index].Registered = true;
             m_ItemCounters[index].Lifetime = lifetime;
         }
+
+        public void Dispose(int index)
+        {
+            m_ItemCounters[index].Lifetime = 0;
+        }
     }
 }

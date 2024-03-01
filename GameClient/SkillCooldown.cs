@@ -30,7 +30,18 @@ namespace GameClient
 
         public void UseSkill(SkillGroup skillGroup)
         {
-            m_Timers[(int)skillGroup] = 1000f;
+            switch (skillGroup)
+            {
+                case SkillGroup.Projectile:
+                    m_Timers[(int)skillGroup] = 4000f;
+                    break;
+                case SkillGroup.Block:
+                    m_Timers[(int)skillGroup] = 8000f;
+                    break;
+                case SkillGroup.Movement:
+                    m_Timers[(int)skillGroup] = 5000f;
+                    break;
+            }
         }
     }
 }
