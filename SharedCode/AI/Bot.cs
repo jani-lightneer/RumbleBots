@@ -30,7 +30,7 @@ namespace SharedCode.AI
             m_Input = input;
             m_SensoryData = sensoryData;
 
-            m_MoveTarget = new Vector2(500, 500);
+            m_MoveTarget = new Vector2(m_Random.Next(100, 900), m_Random.Next(100, 900));
         }
 
         private void Update(float deltaTime)
@@ -38,12 +38,16 @@ namespace SharedCode.AI
             if (!Active)
                 return;
 
+            var characters = m_SensoryData.ReadCharacters();
+            if (characters[m_ClientIndex].Health <= 0)
+                return;
+
             // TODO
             m_Input.Move(m_ClientIndex, m_MoveTarget);
 
+            // TODO
             if (m_Random.NextFloat() > 0.95f)
             {
-                var characters = m_SensoryData.ReadCharacters();
                 int targetIndex = m_Random.Next(0, characters.Length);
 
                 if (targetIndex != m_ClientIndex)

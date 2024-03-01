@@ -6,8 +6,6 @@ using SharedCode.AI;
 using SharedCode.Data;
 using Vector2 = SharedCode.Core.Vector2;
 
-// TODO: Color & Glyph for bots and move targets
-
 namespace GameClient.Core
 {
     public class GameWindow : Game
@@ -21,10 +19,13 @@ namespace GameClient.Core
         private const int BOT_AREA_RADIUS = 16;
         private const int PROJECTILE_AREA_RADIUS = 4;
 
+        private const bool DISABLE_SKILL_USE = true;
+
         private readonly AssetLoader m_AssetLoader;
         private readonly RenderContext m_RenderContext;
 
         private readonly Vector2 m_ScreenCenter;
+        private Font m_Font;
 
         private BotManager m_BotManager;
 
@@ -32,7 +33,8 @@ namespace GameClient.Core
         private Texture2D m_GameArea;
 
         private ObjectPool<CharacterDataEntry> m_Characters;
-        private SkillCooldown[] m_SkillCooldowns;
+        private Vector2[] m_CharacterMoveTargets;
+        private SkillCooldownTimer[] m_SkillCooldownTimers;
         private Texture2D[] m_CharacterTextures;
 
         private ObjectPool<ProjectileDataEntry> m_Projectiles;
@@ -68,8 +70,8 @@ namespace GameClient.Core
 
         protected override void LoadContent()
         {
-            // var monospaceFont = m_AssetLoader.LoadTextureFromFile("MonospaceFont.png");
-            // m_Font = new Font(monospaceFont, 16, 16);
+            var monospaceFont = m_AssetLoader.LoadTextureFromFile("MonospaceFont.png");
+            m_Font = new Font(monospaceFont, 16, 16);
 
             const int maxCharacterCount = 8;
             const int maxProjectileCount = 50;
@@ -89,9 +91,10 @@ namespace GameClient.Core
             Geometry.FillCircle(m_GameArea, Color.White);
 
             m_Characters = new ObjectPool<CharacterDataEntry>(maxCharacterCount);
-            m_SkillCooldowns = new SkillCooldown[m_Characters.MaxCapacity];
-            for (int i = 0; i < m_SkillCooldowns.Length; i++)
-                m_SkillCooldowns[i] = new SkillCooldown();
+            m_CharacterMoveTargets = new Vector2[m_Characters.MaxCapacity];
+            m_SkillCooldownTimers = new SkillCooldownTimer[m_Characters.MaxCapacity];
+            for (int i = 0; i < m_SkillCooldownTimers.Length; i++)
+                m_SkillCooldownTimers[i] = new SkillCooldownTimer();
 
             m_CharacterTextures = new Texture2D[m_Characters.MaxCapacity];
             for (int i = 0; i < m_CharacterTextures.Length; i++)
@@ -118,6 +121,7 @@ namespace GameClient.Core
         private void BotMove(int clientIndex, Vector2 target)
         {
             ref var character = ref m_Characters.Get(clientIndex);
+            m_CharacterMoveTargets[clientIndex] = target;
 
             float distance = Distance(character.Position, target);
             if (distance <= 0)
@@ -130,7 +134,10 @@ namespace GameClient.Core
 
         private bool BotUseSkill(int clientIndex, SkillGroup skillGroup, Vector2 direction)
         {
-            if (!m_SkillCooldowns[clientIndex].Ready(skillGroup))
+            if (DISABLE_SKILL_USE)
+                return false;
+
+            if (!m_SkillCooldownTimers[clientIndex].Ready(skillGroup))
                 return false;
 
             ref var character = ref m_Characters.Get(clientIndex);
@@ -140,7 +147,7 @@ namespace GameClient.Core
             projectile.Direction = direction;
             projectile.AreaRadius = PROJECTILE_AREA_RADIUS;
 
-            m_SkillCooldowns[clientIndex].UseSkill(skillGroup);
+            m_SkillCooldownTimers[clientIndex].UseSkill(skillGroup);
 
             const float projectileLifetime = 4000;
             m_ProjectileDisposer.Add(index, projectileLifetime);
@@ -164,6 +171,7 @@ namespace GameClient.Core
 
                 ref var character = ref m_Characters.Allocate(out _);
                 character.ClientIndex = i;
+                character.Health = 100;
                 character.Position = position;
                 character.Direction = Vector2.Zero;
                 character.AreaRadius = BOT_AREA_RADIUS;
@@ -181,8 +189,8 @@ namespace GameClient.Core
 
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
 
-            for (int i = 0; i < m_SkillCooldowns.Length; i++)
-                m_SkillCooldowns[i].Update(deltaTime);
+            for (int i = 0; i < m_SkillCooldownTimers.Length; i++)
+                m_SkillCooldownTimers[i].Update(deltaTime);
 
             m_Projectiles.ForEach((int _, ref ProjectileDataEntry projectile) =>
             {
@@ -202,11 +210,9 @@ namespace GameClient.Core
 
             var projectiles = m_BotManager.SensoryData.WriteProjectiles(m_Projectiles.Count);
             m_Projectiles.CopyTo(projectiles);
+            // Console.WriteLine(m_Projectiles.Count);
 
             m_BotManager.Update(deltaTime);
-
-
-            Console.WriteLine(m_Projectiles.Count);
 
             base.Update(gameTime);
         }
@@ -231,7 +237,8 @@ namespace GameClient.Core
                 float x = character.Position.X;
                 float y = character.Position.Y;
 
-                m_RenderContext.DrawSprite(texture, 1, x, y, color: Color.Pink);
+                m_RenderContext.DrawSprite(texture, 1, x, y, color: CharacterColor(index));
+                m_RenderContext.DrawGlyph(m_Font, 1, index, x, y);
             });
 
             m_Projectiles.ForEach((int index, ref ProjectileDataEntry projectile) =>
@@ -242,6 +249,15 @@ namespace GameClient.Core
 
                 m_RenderContext.DrawSprite(texture, 1, x, y, color: Color.Black);
             });
+
+            for (int i = 0; i < m_CharacterMoveTargets.Length; i++)
+            {
+                var moveTarget = m_CharacterMoveTargets[i];
+                const float size = 22;
+
+                m_RenderContext.DrawRectangle(CharacterColor(i), moveTarget.X, moveTarget.Y, size, size);
+                m_RenderContext.DrawGlyph(m_Font, 1, i, moveTarget.X, moveTarget.Y);
+            }
 
             m_RenderContext.End();
 
@@ -262,6 +278,12 @@ namespace GameClient.Core
                 X = a.X + (b.X - a.X) * amount,
                 Y = a.Y + (b.Y - a.Y) * amount
             };
+        }
+
+        private Color CharacterColor(int index)
+        {
+            // TODO
+            return new Color(240, 170, 170);
         }
     }
 }
