@@ -36,6 +36,7 @@ namespace GameClient.Core
         private readonly Vector2 m_ScreenCenter;
         private Font m_Font;
 
+        private SkillConfigGroup m_SkillConfigGroup;
         private BotManager m_BotManager;
 
         private float m_GameAreaRadius;
@@ -88,13 +89,20 @@ namespace GameClient.Core
             const int maxCharacterCount = 8;
             const int maxProjectileCount = 50;
 
+            m_SkillConfigGroup = new SkillConfigGroup(new[]
+            {
+                new SkillConfig(Skill.Projectile, 0),
+                new SkillConfig(Skill.Shield, 2000),
+                new SkillConfig(Skill.Dash, 2000),
+            });
+
             var sensoryDataConfig = new SensoryDataConfig()
             {
                 MaxCharacterCount = maxCharacterCount,
                 MaxProjectileCount = maxProjectileCount
             };
 
-            m_BotManager = new BotManager(sensoryDataConfig);
+            m_BotManager = new BotManager(m_SkillConfigGroup, sensoryDataConfig);
             m_BotManager.Input.Move = BotMove;
             m_BotManager.Input.UseSkill = BotUseSkill;
 
@@ -158,19 +166,19 @@ namespace GameClient.Core
             return true;
         }
 
-        private bool BotUseSkill(int clientIndex, SkillGroup skillGroup, Vector2 direction)
+        private bool BotUseSkill(int clientIndex, Skill skill, Vector2 direction)
         {
             if (DISABLE_SKILL_USE)
                 return false;
 
-            if (!m_SkillCooldownTimers[clientIndex].Ready(skillGroup))
+            if (!m_SkillCooldownTimers[clientIndex].Ready(skill))
                 return false;
 
-            m_SkillCooldownTimers[clientIndex].UseSkill(skillGroup);
+            m_SkillCooldownTimers[clientIndex].UseSkill(skill);
 
-            switch (skillGroup)
+            switch (skill)
             {
-                case SkillGroup.Projectile:
+                case Skill.Projectile:
                     ref var character = ref m_Characters.Get(clientIndex);
                     ref var projectile = ref m_Projectiles.Allocate(out int index);
                     projectile.Owner = clientIndex;
@@ -181,11 +189,11 @@ namespace GameClient.Core
                     const float projectileLifetime = 4000;
                     m_ProjectileDisposer.Add(index, projectileLifetime);
                     return true;
-                case SkillGroup.Block:
-                    m_CharacterShieldBuffs[clientIndex] = 2000f;
+                case Skill.Shield:
+                    m_CharacterShieldBuffs[clientIndex] = m_SkillConfigGroup.Skills[(int)skill].Duration;
                     return true;
-                case SkillGroup.Movement:
-                    m_CharacterHasteBuffs[clientIndex] = 2000f;
+                case Skill.Dash:
+                    m_CharacterHasteBuffs[clientIndex] = m_SkillConfigGroup.Skills[(int)skill].Duration;
                     return true;
                 default:
                     throw new NotImplementedException();
@@ -269,24 +277,8 @@ namespace GameClient.Core
 
             m_ProjectileDisposer.Update(deltaTime, m_Projectiles.Free);
 
-            /*
-            var mouseState = Mouse.GetState();
-            var mousePosition = new Vector2(mouseState.X, mouseState.Y);
-            */
-
             m_Characters.ForEach((int index, ref CharacterDataEntry character) =>
             {
-                /*
-                if (character.Health >= 0)
-                {
-                    m_Debug[index] = Geometry.LineToCircleCollision(
-                        m_ScreenCenter,
-                        mousePosition,
-                        character.Position,
-                        BOT_AREA_RADIUS);
-                }
-                */
-
                 m_CharacterShieldBuffs[index] -= deltaTime;
                 if (m_CharacterShieldBuffs[index] < 0)
                     m_CharacterShieldBuffs[index] = 0;
@@ -321,7 +313,6 @@ namespace GameClient.Core
 
             var projectiles = m_BotManager.SensoryData.WriteProjectiles(m_Projectiles.Count);
             m_Projectiles.CopyTo(projectiles);
-            // Console.WriteLine(m_Projectiles.Count);
 
             m_BotManager.Update(deltaTime);
         }

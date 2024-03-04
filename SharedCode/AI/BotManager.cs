@@ -9,7 +9,7 @@ namespace SharedCode.AI
 
     public delegate bool UseSkillHandler(
         int clientIndex,
-        SkillGroup skillGroup,
+        Skill skill,
         Vector2 direction);
 
     public class BotInput
@@ -26,7 +26,7 @@ namespace SharedCode.AI
         public readonly Bot[] Bots;
         private readonly BotUpdateCallback[] m_BotUpdates;
 
-        public BotManager(SensoryDataConfig sensoryDataConfig)
+        public BotManager(SkillConfigGroup skillConfigGroup, SensoryDataConfig sensoryDataConfig)
         {
             Input = new BotInput();
             SensoryData = new SensoryData(sensoryDataConfig);
@@ -37,7 +37,7 @@ namespace SharedCode.AI
             var random = new CachedRandom();
             for (int i = 0; i < Bots.Length; i++)
             {
-                var (bot, botUpdate) = Bot.Create(random, i, Input, SensoryData);
+                var (bot, botUpdate) = Bot.Create(random, i, Input, skillConfigGroup, SensoryData);
                 Bots[i] = bot;
                 m_BotUpdates[i] = botUpdate;
             }

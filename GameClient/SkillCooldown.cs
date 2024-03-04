@@ -1,5 +1,5 @@
 using System;
-using SharedCode.Data;
+using SharedCode.AI;
 
 namespace GameClient
 {
@@ -9,7 +9,7 @@ namespace GameClient
 
         public SkillCooldownTimer()
         {
-            int skillCount = Enum.GetValues<SkillGroup>().Length;
+            int skillCount = Enum.GetValues<Skill>().Length;
             m_Timers = new float[skillCount];
         }
 
@@ -23,23 +23,23 @@ namespace GameClient
             }
         }
 
-        public bool Ready(SkillGroup skillGroup)
+        public bool Ready(Skill skill)
         {
-            return m_Timers[(int)skillGroup] == 0;
+            return m_Timers[(int)skill] == 0;
         }
 
-        public void UseSkill(SkillGroup skillGroup)
+        public void UseSkill(Skill skill)
         {
-            switch (skillGroup)
+            switch (skill)
             {
-                case SkillGroup.Projectile:
-                    m_Timers[(int)skillGroup] = 4000f;
+                case Skill.Projectile:
+                    m_Timers[(int)skill] = 4000f;
                     break;
-                case SkillGroup.Block:
-                    m_Timers[(int)skillGroup] = 8000f;
+                case Skill.Shield:
+                    m_Timers[(int)skill] = 8000f;
                     break;
-                case SkillGroup.Movement:
-                    m_Timers[(int)skillGroup] = 5000f;
+                case Skill.Dash:
+                    m_Timers[(int)skill] = 5000f;
                     break;
             }
         }
