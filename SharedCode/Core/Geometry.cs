@@ -70,5 +70,21 @@ namespace SharedCode.Core
             float distanceY = a.Y - b.Y;
             return MathF.Sqrt(distanceX * distanceX + distanceY * distanceY);
         }
+
+
+        // TODO: Fix this with multiplayer version
+        public static Vector2 Direction(Vector2 a, Vector2 b)
+        {
+            float x = b.X - a.X;
+            float y = b.Y - a.Y;
+
+            float normalize = 1f / MathF.Sqrt(x * x + y * y);
+
+            return new Vector2
+            {
+                X = x * normalize,
+                Y = y * normalize
+            };
+        }
     }
 }

@@ -25,12 +25,14 @@ namespace GameClient.Core
         private const int GAME_AREA_SIZE = 800;
 
         private const int BOT_AREA_RADIUS = 16;
+        private const float BOT_MOVE_SPEED = 80f;
 
         private const float PROJECTILE_SPEED = 300f;
-        private const float PROJECTILE_MAX_RANGE = 30 * 3.4f * 1.5f;
+        private const float PROJECTILE_MAX_RANGE = 200f;
         private const int PROJECTILE_AREA_RADIUS = 4;
 
         private const bool DISABLE_SKILL_USE = false;
+        private const bool RENDER_MOVE_TARGET = false;
 
         private readonly AssetLoader m_AssetLoader;
         private readonly RenderContext m_RenderContext;
@@ -58,6 +60,18 @@ namespace GameClient.Core
 
         public GameWindow()
         {
+            /*
+            for (int i = 0; i < 360; i++)
+            {
+                float radian = i / (float)360 * MathF.PI * 2;
+                float x = MathF.Sin(radian);
+                float y = MathF.Cos(radian);
+
+                Console.WriteLine($"[{i}] {x} : {y}");
+            }
+            */
+
+
             var graphicsDeviceManager = new GraphicsDeviceManager(this);
             graphicsDeviceManager.PreferredBackBufferWidth = SCREEN_WIDTH;
             graphicsDeviceManager.PreferredBackBufferHeight = SCREEN_HEIGHT;
@@ -159,11 +173,11 @@ namespace GameClient.Core
             if (distance <= 0)
                 return false;
 
-            const float MAX_SPEED = 45f / TICK_RATE;
-            float move = Math.Min(distance, MAX_SPEED) / distance;
+            const float TICK_MOVE = BOT_MOVE_SPEED / TICK_RATE;
+            float move = Math.Min(distance, TICK_MOVE) / distance;
 
             if (m_CharacterHasteBuffs[clientIndex] > 0)
-                move *= 2;
+                move *= 2.25f;
 
             character.Position = Lerp(character.Position, target, move);
 
@@ -390,6 +404,9 @@ namespace GameClient.Core
 
             for (int i = 0; i < m_CharacterMoveTargets.Length; i++)
             {
+                if (!RENDER_MOVE_TARGET)
+                    continue;
+
                 ref var character = ref m_Characters.Get(i);
                 if (character.Health <= 0)
                     continue;
