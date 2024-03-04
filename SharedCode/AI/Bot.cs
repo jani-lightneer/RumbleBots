@@ -11,6 +11,9 @@ namespace SharedCode.AI
         public Vector2 Target;
     }
 
+    // TODO: Improve casting on target
+    // TODO: Improve movement
+
     public class Bot
     {
         public const float MOVE_TARGET_DISTANCE = 80;
