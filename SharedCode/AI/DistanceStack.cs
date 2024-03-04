@@ -1,3 +1,5 @@
+using System;
+
 namespace SharedCode.AI
 {
     public struct DistanceStackItem
