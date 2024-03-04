@@ -7,6 +7,7 @@ namespace SharedCode.Data
         public int Owner;
         public Vector2 Position;
         public Vector2 Direction;
+        public float MaxRange;
         public float AreaRadius;
     }
 }

@@ -1,3 +1,5 @@
+using System;
+
 namespace SharedCode.Core
 {
     public static class Geometry

@@ -3,7 +3,6 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using SharedCode.AI;
-using SharedCode.Core;
 using SharedCode.Data;
 using Vector2 = SharedCode.Core.Vector2;
 
@@ -26,6 +25,9 @@ namespace GameClient.Core
         private const int GAME_AREA_SIZE = 800;
 
         private const int BOT_AREA_RADIUS = 16;
+
+        private const float PROJECTILE_SPEED = 300f;
+        private const float PROJECTILE_MAX_RANGE = 30 * 3.4f * 1.5f;
         private const int PROJECTILE_AREA_RADIUS = 4;
 
         private const bool DISABLE_SKILL_USE = false;
@@ -89,11 +91,13 @@ namespace GameClient.Core
             const int maxCharacterCount = 8;
             const int maxProjectileCount = 50;
 
+            const float ACTION_DISTANCE = 80f;
+
             m_SkillConfigGroup = new SkillConfigGroup(new[]
             {
-                new SkillConfig(Skill.Projectile, 0),
-                new SkillConfig(Skill.Shield, 2000),
-                new SkillConfig(Skill.Dash, 2000),
+                new SkillConfig(Skill.Projectile, PROJECTILE_MAX_RANGE, 0),
+                new SkillConfig(Skill.Shield, 0, 2000),
+                new SkillConfig(Skill.Dash, 0, 2000),
             });
 
             var sensoryDataConfig = new SensoryDataConfig()
@@ -102,7 +106,7 @@ namespace GameClient.Core
                 MaxProjectileCount = maxProjectileCount
             };
 
-            m_BotManager = new BotManager(m_SkillConfigGroup, sensoryDataConfig);
+            m_BotManager = new BotManager(ACTION_DISTANCE, m_SkillConfigGroup, sensoryDataConfig);
             m_BotManager.Input.Move = BotMove;
             m_BotManager.Input.UseSkill = BotUseSkill;
 
@@ -184,9 +188,11 @@ namespace GameClient.Core
                     projectile.Owner = clientIndex;
                     projectile.Position = character.Position;
                     projectile.Direction = direction;
+                    projectile.MaxRange = PROJECTILE_MAX_RANGE;
                     projectile.AreaRadius = PROJECTILE_AREA_RADIUS;
 
-                    const float projectileLifetime = 4000;
+                    const float TIME_TO_REACH_MAX_RANGE = PROJECTILE_MAX_RANGE / PROJECTILE_SPEED;
+                    const float projectileLifetime = TIME_TO_REACH_MAX_RANGE * 1000f;
                     m_ProjectileDisposer.Add(index, projectileLifetime);
                     return true;
                 case Skill.Shield:
@@ -247,9 +253,9 @@ namespace GameClient.Core
 
             m_Projectiles.ForEach((int index, ref ProjectileDataEntry projectile) =>
             {
-                const float PROJECTILE_SPEED = 300f / TICK_RATE;
-                projectile.Position.X += projectile.Direction.X * PROJECTILE_SPEED;
-                projectile.Position.Y += projectile.Direction.Y * PROJECTILE_SPEED;
+                const float TICK_MOVE = PROJECTILE_SPEED / TICK_RATE;
+                projectile.Position.X += projectile.Direction.X * TICK_MOVE;
+                projectile.Position.Y += projectile.Direction.Y * TICK_MOVE;
 
                 if (ProjectileCollision(ref projectile, out int characterIndex))
                 {
@@ -260,8 +266,8 @@ namespace GameClient.Core
                         projectile.Direction.Y *= -1;
 
                         // Move extra step just in case
-                        projectile.Position.X += projectile.Direction.X * PROJECTILE_SPEED;
-                        projectile.Position.Y += projectile.Direction.Y * PROJECTILE_SPEED;
+                        projectile.Position.X += projectile.Direction.X * TICK_MOVE;
+                        projectile.Position.Y += projectile.Direction.Y * TICK_MOVE;
                         return;
                     }
 

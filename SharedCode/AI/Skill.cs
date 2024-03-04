@@ -1,3 +1,5 @@
+using System;
+
 namespace SharedCode.AI
 {
     public enum Skill
@@ -10,11 +12,13 @@ namespace SharedCode.AI
     public class SkillConfig
     {
         public readonly Skill Skill;
+        public readonly float Range;
         public readonly float Duration;
 
-        public SkillConfig(Skill skill, float duration)
+        public SkillConfig(Skill skill, float range, float duration)
         {
             Skill = skill;
+            Range = range;
             Duration = duration;
         }
     }
@@ -25,11 +29,11 @@ namespace SharedCode.AI
 
         public SkillConfigGroup(SkillConfig[] skillConfigs)
         {
-            int skillCount = Enum.GetValues<Skill>().Length;
+            int skillCount = Enum.GetValues(typeof(Skill)).Length;
             Skills = new SkillConfig[skillCount];
 
             int index = 0;
-            foreach (Skill skill in Enum.GetValues<Skill>())
+            foreach (Skill skill in Enum.GetValues(typeof(Skill)))
             {
                 Skills[index] = FindSkillConfig(skill, skillConfigs);
                 index++;

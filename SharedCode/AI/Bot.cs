@@ -1,4 +1,5 @@
-﻿using SharedCode.Core;
+﻿using System;
+using SharedCode.Core;
 using SharedCode.Data;
 
 namespace SharedCode.AI
@@ -16,19 +17,20 @@ namespace SharedCode.AI
 
     public class Bot
     {
-        public const float MOVE_TARGET_DISTANCE = 80;
-
         public bool Active;
 
         private readonly CachedRandom m_Random;
         private readonly int m_ClientIndex;
         private readonly BotInput m_Input;
+        private readonly float m_ActionDistance;
         private readonly SensoryData m_SensoryData;
 
         private readonly MoveTarget[] m_MoveTargets;
         private int m_MoveTargetIndex;
         private float m_MoveCooldown;
 
+        // TODO: Refactor
+        private readonly float m_ProjectileMaxRange;
         private readonly SkillMonitor m_SkillMonitor;
 
         private MoveTarget m_LastUpdateMoveTarget;
@@ -37,6 +39,7 @@ namespace SharedCode.AI
             CachedRandom random,
             int clientIndex,
             BotInput input,
+            float actionDistance,
             SkillConfigGroup skillConfigGroup,
             SensoryData sensoryData)
         {
@@ -45,12 +48,14 @@ namespace SharedCode.AI
             m_Random = random;
             m_ClientIndex = clientIndex;
             m_Input = input;
+            m_ActionDistance = actionDistance;
             m_SensoryData = sensoryData;
 
             m_MoveTargets = new MoveTarget[36];
             m_MoveTargetIndex = 0;
             m_MoveCooldown = 0;
 
+            m_ProjectileMaxRange = skillConfigGroup.Skills[(int)Skill.Projectile].Range;
             m_SkillMonitor = new SkillMonitor(skillConfigGroup);
 
             m_LastUpdateMoveTarget = new MoveTarget();
@@ -67,13 +72,13 @@ namespace SharedCode.AI
 
             m_SkillMonitor.Update(deltaTime);
 
-            if (CheckProjectileTrajectories(MOVE_TARGET_DISTANCE * 4, characters, out float closestDistance))
+            if (CheckProjectileTrajectories(m_ActionDistance * 4, characters, out float closestDistance))
             {
                 // Can cause Dash & Shield usage same time
                 bool shieldCooldown = true;
 
                 // TODO: Fine tune based world size
-                if (closestDistance <= MOVE_TARGET_DISTANCE * 3
+                if (closestDistance <= m_ActionDistance * 3
                     && m_Input.UseSkill(m_ClientIndex, Skill.Shield, Vector2.Zero))
                 {
                     m_SkillMonitor.Start(Skill.Shield);
@@ -82,7 +87,7 @@ namespace SharedCode.AI
 
                 // TODO: Fine tune based world size
                 if (shieldCooldown
-                    && closestDistance <= MOVE_TARGET_DISTANCE * 4
+                    && closestDistance <= m_ActionDistance * 4
                     && m_SkillMonitor.GetActiveTime(Skill.Shield) <= 200
                     && m_Input.UseSkill(m_ClientIndex, Skill.Dash, Vector2.Zero))
                 {
@@ -142,6 +147,13 @@ namespace SharedCode.AI
                 if (projectiles[i].Owner == m_ClientIndex)
                     continue;
 
+                float distance = Geometry.Distance(
+                    characters[m_ClientIndex].Position,
+                    projectiles[i].Position);
+
+                if (distance > projectiles[i].MaxRange)
+                    continue;
+
                 var endLocation = new Vector2()
                 {
                     X = projectiles[i].Position.X + projectiles[i].Direction.X * maxDistance,
@@ -156,13 +168,7 @@ namespace SharedCode.AI
                     projectiles[i].AreaRadius);
 
                 if (potentialProjectileCollision)
-                {
-                    float distance = Geometry.Distance(
-                        characters[m_ClientIndex].Position,
-                        projectiles[i].Position);
-
                     closestDistance = Math.Min(distance, closestDistance);
-                }
             }
 
             return potentialProjectileCollision;
@@ -173,10 +179,10 @@ namespace SharedCode.AI
             for (int i = 0; i < m_MoveTargets.Length; i++)
             {
                 float radian = i / (float)m_MoveTargets.Length * (float)Math.PI * 2;
-                m_MoveTargets[i].Target.X = MOVE_TARGET_DISTANCE * (float)Math.Sin(radian)
+                m_MoveTargets[i].Target.X = m_ActionDistance * (float)Math.Sin(radian)
                                             + characters[m_ClientIndex].Position.X;
 
-                m_MoveTargets[i].Target.Y = MOVE_TARGET_DISTANCE * (float)Math.Cos(radian)
+                m_MoveTargets[i].Target.Y = m_ActionDistance * (float)Math.Cos(radian)
                                             + characters[m_ClientIndex].Position.Y;
 
                 if (!GameAreaContains(m_MoveTargets[i].Target))
@@ -185,6 +191,7 @@ namespace SharedCode.AI
                     continue;
                 }
 
+                /*
                 float closestDistance = float.MaxValue;
                 for (int j = 0; j < characters.Length; j++)
                 {
@@ -196,8 +203,23 @@ namespace SharedCode.AI
                         closestDistance = distance;
                 }
 
-                // TODO: Fine tune!
                 m_MoveTargets[i].Weight = Math.Clamp((int)closestDistance, 1, 200);
+                */
+
+                float bestSkillRange = 1f;
+                for (int j = 0; j < characters.Length; j++)
+                {
+                    if (j == m_ClientIndex)
+                        continue;
+
+                    float distance = Distance(characters, m_ClientIndex, j);
+                    float skillRange = Math.Abs(distance - m_ProjectileMaxRange);
+                    if (skillRange < bestSkillRange)
+                        bestSkillRange = skillRange;
+                }
+
+                int moveWeight = (int)((1f - bestSkillRange) * 200);
+                m_MoveTargets[i].Weight = Math.Clamp(moveWeight, 1, 200);
 
                 if (m_LastUpdateMoveTarget.Weight != 0)
                 {
@@ -248,7 +270,7 @@ namespace SharedCode.AI
                     continue;
 
                 float distance = Distance(characters, m_ClientIndex, i);
-                if (distance < closestDistance)
+                if (distance <= m_ProjectileMaxRange && distance < closestDistance)
                 {
                     closestIndex = i;
                     closestDistance = distance;
@@ -287,7 +309,7 @@ namespace SharedCode.AI
         private bool GameAreaContains(Vector2 point)
         {
             // TODO: Increment this when GameAreaRadius is smaller
-            const float OPTIMAL_GAME_AREA_ZONE = 0.8f;
+            const float OPTIMAL_GAME_AREA_ZONE = 0.9f;
 
             Vector2 circleCenter = m_SensoryData.GameAreaCenter;
             float circleRadius = m_SensoryData.GameAreaRadius * OPTIMAL_GAME_AREA_ZONE;
@@ -302,10 +324,18 @@ namespace SharedCode.AI
             CachedRandom random,
             int clientIndex,
             BotInput input,
+            float actionDistance,
             SkillConfigGroup skillConfigGroup,
             SensoryData sensoryData)
         {
-            var bot = new Bot(random, clientIndex, input, skillConfigGroup, sensoryData);
+            var bot = new Bot(
+                random,
+                clientIndex,
+                input,
+                actionDistance,
+                skillConfigGroup,
+                sensoryData);
+
             return (bot, bot.Update);
         }
     }
