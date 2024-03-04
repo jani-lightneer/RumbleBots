@@ -13,8 +13,7 @@ namespace SharedCode.AI
 
     public class Bot
     {
-        // Temp variable
-        public const float WORLD_SIZE = 1;
+        public const float MOVE_TARGET_DISTANCE = 80;
 
         public bool Active;
 
@@ -65,12 +64,13 @@ namespace SharedCode.AI
 
             m_SkillMonitor.Update(deltaTime);
 
-            if (CheckProjectileTrajectories(characters, out float closestDistance))
+            if (CheckProjectileTrajectories(MOVE_TARGET_DISTANCE * 4, characters, out float closestDistance))
             {
+                // Can cause Dash & Shield usage same time
                 bool shieldCooldown = true;
 
                 // TODO: Fine tune based world size
-                if (closestDistance <= WORLD_SIZE * 100f
+                if (closestDistance <= MOVE_TARGET_DISTANCE * 3
                     && m_Input.UseSkill(m_ClientIndex, Skill.Shield, Vector2.Zero))
                 {
                     m_SkillMonitor.Start(Skill.Shield);
@@ -79,7 +79,7 @@ namespace SharedCode.AI
 
                 // TODO: Fine tune based world size
                 if (shieldCooldown
-                    && closestDistance <= WORLD_SIZE * 200f
+                    && closestDistance <= MOVE_TARGET_DISTANCE * 4
                     && m_SkillMonitor.GetActiveTime(Skill.Shield) <= 200
                     && m_Input.UseSkill(m_ClientIndex, Skill.Dash, Vector2.Zero))
                 {
@@ -126,6 +126,7 @@ namespace SharedCode.AI
         }
 
         private bool CheckProjectileTrajectories(
+            float maxDistance,
             ReadOnlySpan<CharacterDataEntry> characters,
             out float closestDistance)
         {
@@ -138,11 +139,10 @@ namespace SharedCode.AI
                 if (projectiles[i].Owner == m_ClientIndex)
                     continue;
 
-                const float MAX_DISTANCE = WORLD_SIZE * 200f;
                 var endLocation = new Vector2()
                 {
-                    X = projectiles[i].Position.X + projectiles[i].Direction.X * MAX_DISTANCE,
-                    Y = projectiles[i].Position.Y + projectiles[i].Direction.Y * MAX_DISTANCE,
+                    X = projectiles[i].Position.X + projectiles[i].Direction.X * maxDistance,
+                    Y = projectiles[i].Position.Y + projectiles[i].Direction.Y * maxDistance,
                 };
 
                 // TODO: Need also character size
@@ -167,15 +167,13 @@ namespace SharedCode.AI
 
         private void FindPotentialMoveTargets(ReadOnlySpan<CharacterDataEntry> characters)
         {
-            const float MAX_MOVE_TARGET_DISTANCE = WORLD_SIZE * 50f;
-
             for (int i = 0; i < m_MoveTargets.Length; i++)
             {
                 float radian = i / (float)m_MoveTargets.Length * (float)Math.PI * 2;
-                m_MoveTargets[i].Target.X = MAX_MOVE_TARGET_DISTANCE * (float)Math.Sin(radian)
+                m_MoveTargets[i].Target.X = MOVE_TARGET_DISTANCE * (float)Math.Sin(radian)
                                             + characters[m_ClientIndex].Position.X;
 
-                m_MoveTargets[i].Target.Y = MAX_MOVE_TARGET_DISTANCE * (float)Math.Cos(radian)
+                m_MoveTargets[i].Target.Y = MOVE_TARGET_DISTANCE * (float)Math.Cos(radian)
                                             + characters[m_ClientIndex].Position.Y;
 
                 if (!GameAreaContains(m_MoveTargets[i].Target))
