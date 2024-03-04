@@ -13,7 +13,8 @@ namespace SharedCode.AI
 
     public class Bot
     {
-        const float MAX_MOVE_TARGET_DISTANCE = 50;
+        // Temp variable
+        public const float WORLD_SIZE = 1;
 
         public bool Active;
 
@@ -69,7 +70,7 @@ namespace SharedCode.AI
                 bool shieldCooldown = true;
 
                 // TODO: Fine tune based world size
-                if (closestDistance <= 100
+                if (closestDistance <= WORLD_SIZE * 100f
                     && m_Input.UseSkill(m_ClientIndex, Skill.Shield, Vector2.Zero))
                 {
                     m_SkillMonitor.Start(Skill.Shield);
@@ -78,7 +79,7 @@ namespace SharedCode.AI
 
                 // TODO: Fine tune based world size
                 if (shieldCooldown
-                    && closestDistance <= 200
+                    && closestDistance <= WORLD_SIZE * 200f
                     && m_SkillMonitor.GetActiveTime(Skill.Shield) <= 200
                     && m_Input.UseSkill(m_ClientIndex, Skill.Dash, Vector2.Zero))
                 {
@@ -137,7 +138,7 @@ namespace SharedCode.AI
                 if (projectiles[i].Owner == m_ClientIndex)
                     continue;
 
-                const float MAX_DISTANCE = 200f;
+                const float MAX_DISTANCE = WORLD_SIZE * 200f;
                 var endLocation = new Vector2()
                 {
                     X = projectiles[i].Position.X + projectiles[i].Direction.X * MAX_DISTANCE,
@@ -166,6 +167,8 @@ namespace SharedCode.AI
 
         private void FindPotentialMoveTargets(ReadOnlySpan<CharacterDataEntry> characters)
         {
+            const float MAX_MOVE_TARGET_DISTANCE = WORLD_SIZE * 50f;
+
             for (int i = 0; i < m_MoveTargets.Length; i++)
             {
                 float radian = i / (float)m_MoveTargets.Length * (float)Math.PI * 2;
