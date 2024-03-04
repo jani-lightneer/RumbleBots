@@ -251,16 +251,13 @@ namespace SharedCode.AI
                 int moveWeight = (int)((1f - bestSkillRange) * 200);
                 m_MoveTargets[i].Weight = Math.Clamp(moveWeight, 1, 200);
 
-                /*
+                // Decrease probability for U-turn
                 if (m_LastUpdateMoveTarget.Weight != 0)
                 {
                     float distance = Geometry.Distance(m_LastUpdateMoveTarget.Target, m_MoveTargets[i].Target);
                     int invertedDistance = 100 - (int)Math.Clamp(distance, 0, 100);
-
-                    // int multiplier = (int)(Math.Clamp(100 - distance, 0, 100) / 10);
                     m_MoveTargets[i].Weight *= invertedDistance / 10;
                 }
-                */
 
                 if (m_LastUpdateMoveTarget.Weight != 0 && !allowTurning)
                 {
