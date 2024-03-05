@@ -108,7 +108,7 @@ namespace SharedCode.AI
 
             for (int i = 0; i < 4; i++)
             {
-                float actionDistance = m_ActionDistance - (m_ActionDistance * i * 0.25f);
+                float actionDistance = m_ActionDistance - (m_ActionDistance * i * 0.2f);
                 if (FindPotentialMoveTargets(characters, actionDistance, m_MoveCooldown <= 0f))
                     break;
             }
@@ -236,7 +236,25 @@ namespace SharedCode.AI
             bool foundMoveTarget = false;
             m_DistanceStack.Reset(actionDistance * 1000);
 
-            int huntTarget = (allowTurning) ? m_AggressionPool.FindHuntTarget(m_ClientIndex) : -1;
+            int huntTarget = -1;
+            float maxHuntDistance = m_ProjectileMaxRange * 1.8f;
+
+            if (allowTurning)
+            {
+                huntTarget = m_AggressionPool.FindHuntTarget(m_ClientIndex);
+                if (huntTarget != -1)
+                {
+                    if (Distance(characters, m_ClientIndex, huntTarget) > maxHuntDistance)
+                    {
+                        // Console.WriteLine("Skip: Hunt!");
+                        huntTarget = -1;
+                    }
+                    else
+                    {
+                        // Console.WriteLine("Hunt!");
+                    }
+                }
+            }
 
             for (int i = 0; i < m_MoveTargets.Length; i++)
             {
@@ -255,12 +273,13 @@ namespace SharedCode.AI
 
                 foundMoveTarget = true;
 
-                int moveWeight = 0;
+                int moveWeight;
                 if (huntTarget != -1)
                 {
-                    // Console.WriteLine("HUNT!");
                     float distance = Distance(characters, m_ClientIndex, huntTarget);
-                    moveWeight = (int)((1f - distance) * 200);
+                    float skillRange = Math.Abs(distance - maxHuntDistance);
+
+                    moveWeight = (int)((1f - skillRange) * 200);
                 }
                 else
                 {
