@@ -115,6 +115,9 @@ namespace SharedCode.AI
 
             if (m_MoveCooldown <= 0f)
             {
+                m_MoveCooldown = m_Random.Next(500, 800);
+
+                /*
                 if (m_SkillMonitor.GetActiveTime(Skill.Dash) > 0)
                 {
                     // TODO: Fine tune based dash speed buff
@@ -125,6 +128,7 @@ namespace SharedCode.AI
                     // TODO: Fine tune based movement speed
                     m_MoveCooldown = m_Random.Next(500, 800);
                 }
+                */
             }
 
             m_MoveTargetIndex = RandomMoveTarget();
