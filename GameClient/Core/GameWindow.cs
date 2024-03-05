@@ -24,6 +24,8 @@ namespace GameClient.Core
         private const int TICK_RATE = 100;
         private const int GAME_AREA_SIZE = 800;
 
+        private const float AREA_DISSOLVE_SPEED = 5f;
+
         private const int BOT_AREA_RADIUS = 16;
         private const float BOT_MOVE_SPEED = 80f;
 
@@ -123,6 +125,9 @@ namespace GameClient.Core
             m_BotManager = new BotManager(ACTION_DISTANCE, m_SkillConfigGroup, sensoryDataConfig);
             m_BotManager.Input.Move = BotMove;
             m_BotManager.Input.UseSkill = BotUseSkill;
+
+            // This should be used on round start
+            m_BotManager.ResetData();
 
             m_GameAreaRadius = GAME_AREA_SIZE / 2f;
             m_GameArea = m_RenderContext.CreateTexture(GAME_AREA_SIZE, GAME_AREA_SIZE);
@@ -323,8 +328,7 @@ namespace GameClient.Core
                 }
             });
 
-            const float DISSOLVE_SPEED = 5f / TICK_RATE;
-            m_GameAreaRadius -= DISSOLVE_SPEED;
+            m_GameAreaRadius -= AREA_DISSOLVE_SPEED / TICK_RATE;
 
             m_BotManager.SensoryData.GameAreaCenter = m_ScreenCenter;
             m_BotManager.SensoryData.GameAreaRadius = m_GameAreaRadius;

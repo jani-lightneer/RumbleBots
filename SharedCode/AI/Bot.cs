@@ -6,15 +6,11 @@ namespace SharedCode.AI
 {
     public delegate void BotUpdateCallback(float deltaTime);
 
-    public struct MoveTarget
+    public struct ActionTarget
     {
         public int Weight;
         public Vector2 Target;
     }
-
-    // TODO: Improve casting cone
-    // TODO: Improve casting random time
-    // TODO: Improve movement sin & cos
 
     public class Bot
     {
@@ -29,21 +25,24 @@ namespace SharedCode.AI
         private readonly SensoryData m_SensoryData;
 
         private float m_ProjectileDelay;
-        private readonly MoveTarget[] m_MoveTargets;
+        private readonly ActionTarget[] m_MoveTargets;
+        private readonly ActionTarget[] m_SkillTargets;
         private int m_MoveTargetIndex;
         private float m_MoveCooldown;
 
         // TODO: Refactor
         private readonly float m_ProjectileMaxRange;
         private readonly SkillMonitor m_SkillMonitor;
+        private readonly AggressionPool m_AggressionPool;
 
         private readonly DistanceStack m_DistanceStack;
-        private MoveTarget m_LastUpdateMoveTarget;
+        private ActionTarget m_LastUpdateMoveTarget;
 
         public Bot(
             CachedRandom random,
             int clientIndex,
             BotInput input,
+            AggressionPool aggressionPool,
             float actionDistance,
             SkillConfigGroup skillConfigGroup,
             SensoryData sensoryData)
@@ -57,15 +56,17 @@ namespace SharedCode.AI
             m_SensoryData = sensoryData;
 
             m_ProjectileDelay = m_Random.NextFloat() * MAX_PROJECTILE_DELAY;
-            m_MoveTargets = new MoveTarget[36];
+            m_MoveTargets = new ActionTarget[36];
+            m_SkillTargets = new ActionTarget[aggressionPool.MaxCharacterCount];
             m_MoveTargetIndex = 0;
             m_MoveCooldown = 0;
 
             m_ProjectileMaxRange = skillConfigGroup.Skills[(int)Skill.Projectile].Range;
             m_SkillMonitor = new SkillMonitor(skillConfigGroup);
+            m_AggressionPool = aggressionPool;
 
             m_DistanceStack = new DistanceStack(3);
-            m_LastUpdateMoveTarget = new MoveTarget();
+            m_LastUpdateMoveTarget = new ActionTarget();
         }
 
         private void Update(float deltaTime)
@@ -105,7 +106,13 @@ namespace SharedCode.AI
 
             m_MoveCooldown -= deltaTime;
 
-            FindPotentialMoveTargets(characters, m_MoveCooldown <= 0f);
+            for (int i = 0; i < 4; i++)
+            {
+                float actionDistance = m_ActionDistance - (m_ActionDistance * i * 0.25f);
+                if (FindPotentialMoveTargets(characters, actionDistance, m_MoveCooldown <= 0f))
+                    break;
+            }
+
             if (m_MoveCooldown <= 0f)
             {
                 if (m_SkillMonitor.GetActiveTime(Skill.Dash) > 0)
@@ -124,8 +131,8 @@ namespace SharedCode.AI
             if (m_MoveTargetIndex == -1)
             {
                 m_MoveTargets[0].Target = m_SensoryData.GameAreaCenter;
-                m_MoveTargets[0].Target.X += (1f - m_Random.NextFloat() * 2f) * m_SensoryData.GameAreaRadius * 0.4f;
-                m_MoveTargets[0].Target.Y += (1f - m_Random.NextFloat() * 2f) * m_SensoryData.GameAreaRadius * 0.4f;
+                // m_MoveTargets[0].Target.X += (1f - m_Random.NextFloat() * 2f) * m_SensoryData.GameAreaRadius * 0.4f;
+                // m_MoveTargets[0].Target.Y += (1f - m_Random.NextFloat() * 2f) * m_SensoryData.GameAreaRadius * 0.4f;
                 m_MoveTargetIndex = 0;
             }
 
@@ -133,11 +140,13 @@ namespace SharedCode.AI
                 m_MoveCooldown = 0;
 
             m_ProjectileDelay -= deltaTime;
-            if (m_ProjectileDelay <= 0f)
+            if (m_ProjectileDelay <= 0f && FindPotentialSkillTargets(characters))
             {
-                int targetIndex = FindPotentialSkillTarget(characters, out float targetDistance);
+                int targetIndex = RandomSkillTarget();
                 if (targetIndex != -1)
                 {
+                    float targetDistance = Distance(characters, m_ClientIndex, targetIndex);
+
                     var target = characters[targetIndex].Position;
                     float range = targetDistance / m_ProjectileMaxRange;
                     float spread = Math.Clamp((range - 0.5f) * 2f, 0, 1f);
@@ -152,7 +161,8 @@ namespace SharedCode.AI
                         characters[m_ClientIndex].Position,
                         target);
 
-                    m_Input.UseSkill(m_ClientIndex, Skill.Projectile, direction);
+                    if (m_Input.UseSkill(m_ClientIndex, Skill.Projectile, direction))
+                        m_AggressionPool.AddAggression(m_ClientIndex, targetIndex);
                 }
 
                 m_ProjectileDelay = m_Random.NextFloat() * MAX_PROJECTILE_DELAY;
@@ -200,8 +210,9 @@ namespace SharedCode.AI
             return potentialProjectileCollision;
         }
 
-        private void FindPotentialMoveTargets(
+        private bool FindPotentialMoveTargets(
             ReadOnlySpan<CharacterDataEntry> characters,
+            float actionDistance,
             bool allowTurning)
         {
             // const int FORCE_TARGET_COUNT = 3;
@@ -218,15 +229,18 @@ namespace SharedCode.AI
             }
             */
 
-            m_DistanceStack.Reset(m_ActionDistance * 1000);
+            bool foundMoveTarget = false;
+            m_DistanceStack.Reset(actionDistance * 1000);
+
+            int huntTarget = (allowTurning) ? m_AggressionPool.FindHuntTarget(m_ClientIndex) : -1;
 
             for (int i = 0; i < m_MoveTargets.Length; i++)
             {
                 float radian = i / (float)m_MoveTargets.Length * (float)Math.PI * 2;
-                m_MoveTargets[i].Target.X = m_ActionDistance * (float)Math.Sin(radian)
+                m_MoveTargets[i].Target.X = actionDistance * (float)Math.Sin(radian)
                                             + characters[m_ClientIndex].Position.X;
 
-                m_MoveTargets[i].Target.Y = m_ActionDistance * (float)Math.Cos(radian)
+                m_MoveTargets[i].Target.Y = actionDistance * (float)Math.Cos(radian)
                                             + characters[m_ClientIndex].Position.Y;
 
                 if (!GameAreaContains(m_MoveTargets[i].Target))
@@ -235,20 +249,32 @@ namespace SharedCode.AI
                     continue;
                 }
 
-                float bestSkillRange = 1f;
-                for (int j = 0; j < characters.Length; j++)
-                {
-                    if (j == m_ClientIndex)
-                        continue;
+                foundMoveTarget = true;
 
-                    float distance = Distance(characters, m_ClientIndex, j);
-                    float skillRange = Math.Abs(distance - m_ProjectileMaxRange);
-                    if (skillRange < bestSkillRange)
-                        bestSkillRange = skillRange;
+                int moveWeight = 0;
+                if (huntTarget != -1)
+                {
+                    // Console.WriteLine("HUNT!");
+                    float distance = Distance(characters, m_ClientIndex, huntTarget);
+                    moveWeight = (int)((1f - distance) * 200);
+                }
+                else
+                {
+                    float bestSkillRange = 1f;
+                    for (int j = 0; j < characters.Length; j++)
+                    {
+                        if (j == m_ClientIndex)
+                            continue;
+
+                        float distance = Distance(characters, m_ClientIndex, j);
+                        float skillRange = Math.Abs(distance - m_ProjectileMaxRange);
+                        if (skillRange < bestSkillRange)
+                            bestSkillRange = skillRange;
+                    }
+
+                    moveWeight = (int)((1f - bestSkillRange) * 200);
                 }
 
-                // TODO: Fine tune
-                int moveWeight = (int)((1f - bestSkillRange) * 200);
                 m_MoveTargets[i].Weight = Math.Clamp(moveWeight, 1, 200);
 
                 // Decrease probability for U-turn
@@ -263,16 +289,11 @@ namespace SharedCode.AI
                 {
                     float distance = Geometry.Distance(m_LastUpdateMoveTarget.Target, m_MoveTargets[i].Target);
                     m_DistanceStack.TryAdd(i, distance);
-
-                    /*
-                    if (distance < bestForceMoveTargetDistance)
-                    {
-                        bestForceMoveTarget = i;
-                        bestForceMoveTargetDistance = distance;
-                    }
-                    */
                 }
             }
+
+            if (huntTarget != -1)
+                m_AggressionPool.TagHuntTarget(huntTarget);
 
             if (m_DistanceStack.Used)
             {
@@ -283,20 +304,10 @@ namespace SharedCode.AI
 
                     m_MoveTargets[i].Weight = 0;
                 }
-
-                /*
-                for (int i = 0; i < m_DistanceStack.Items.Length; i++)
-                {
-                    int index = m_DistanceStack.Items[i].Index;
-                    if (index == -1)
-                        continue;
-
-                    m_MoveTargets[index].Weight = 0;
-                }
-                */
             }
 
             Array.Sort(m_MoveTargets, (a, b) => b.Weight - a.Weight);
+            return foundMoveTarget;
         }
 
         private int RandomMoveTarget()
@@ -326,6 +337,63 @@ namespace SharedCode.AI
             return -1;
         }
 
+        private bool FindPotentialSkillTargets(ReadOnlySpan<CharacterDataEntry> characters)
+        {
+            bool foundSkillTarget = false;
+
+            for (int i = 0; i < characters.Length; i++)
+            {
+                if (i == m_ClientIndex || characters[i].Health <= 0)
+                {
+                    m_SkillTargets[i].Weight = 0;
+                    continue;
+                }
+
+
+                float distance = Distance(characters, m_ClientIndex, i);
+                if (distance >= m_ProjectileMaxRange)
+                {
+                    m_SkillTargets[i].Weight = 0;
+                    continue;
+                }
+
+                foundSkillTarget = true;
+
+                float invertedDistance = Math.Clamp(m_ProjectileMaxRange - distance, 1, m_ProjectileMaxRange);
+                float receivedAggression = m_AggressionPool.GetCharacterReceivedAggression(i);
+                float invertedReceivedAggression = Math.Clamp(1f - receivedAggression, 0.01f, 1f);
+                float weight = invertedDistance * 10 * invertedReceivedAggression * invertedReceivedAggression;
+
+                m_SkillTargets[i].Weight = (int)weight;
+                if (m_SkillTargets[i].Weight < 0)
+                    m_SkillTargets[i].Weight = 1;
+            }
+
+            return foundSkillTarget;
+        }
+
+        // TODO: Combine with random target (move + skill)
+        private int RandomSkillTarget()
+        {
+            int totalWeight = 0;
+            for (int i = 0; i < m_SkillTargets.Length; i++)
+                totalWeight += m_SkillTargets[i].Weight;
+
+            if (totalWeight == 0)
+                return -1;
+
+            int selection = m_Random.Next(0, totalWeight);
+            for (int i = 0; i < m_SkillTargets.Length; i++)
+            {
+                selection -= m_SkillTargets[i].Weight;
+                if (selection <= 0)
+                    return i;
+            }
+
+            return -1;
+        }
+
+        /*
         private int FindPotentialSkillTarget(
             ReadOnlySpan<CharacterDataEntry> characters,
             out float targetDistance)
@@ -339,7 +407,10 @@ namespace SharedCode.AI
                     continue;
 
                 float distance = Distance(characters, m_ClientIndex, i);
-                if (distance <= m_ProjectileMaxRange && distance < targetDistance)
+                if (distance <= m_ProjectileMaxRange)
+                    continue;
+
+                if (distance < targetDistance)
                 {
                     closestIndex = i;
                     targetDistance = distance;
@@ -349,22 +420,6 @@ namespace SharedCode.AI
             // TODO: Multiply based on health?
 
             return closestIndex;
-        }
-
-        /*
-        // TODO: Generic helper
-        private Vector2 Direction(ReadOnlySpan<CharacterDataEntry> characters, int from, int to)
-        {
-            float x = characters[to].Position.X - characters[from].Position.X;
-            float y = characters[to].Position.Y - characters[from].Position.Y;
-
-            float normalize = 1f / MathF.Sqrt(x * x + y * y);
-
-            return new Vector2
-            {
-                X = x * normalize,
-                Y = y * normalize
-            };
         }
         */
 
@@ -395,6 +450,7 @@ namespace SharedCode.AI
             CachedRandom random,
             int clientIndex,
             BotInput input,
+            AggressionPool aggressionPool,
             float actionDistance,
             SkillConfigGroup skillConfigGroup,
             SensoryData sensoryData)
@@ -403,6 +459,7 @@ namespace SharedCode.AI
                 random,
                 clientIndex,
                 input,
+                aggressionPool,
                 actionDistance,
                 skillConfigGroup,
                 sensoryData);

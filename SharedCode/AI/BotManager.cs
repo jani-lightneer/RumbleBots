@@ -24,6 +24,7 @@ namespace SharedCode.AI
         public readonly SensoryData SensoryData;
 
         public readonly Bot[] Bots;
+        private readonly AggressionPool m_AggressionPool;
         private readonly BotUpdateCallback[] m_BotUpdates;
 
         public BotManager(
@@ -35,6 +36,7 @@ namespace SharedCode.AI
             SensoryData = new SensoryData(sensoryDataConfig);
 
             Bots = new Bot[sensoryDataConfig.MaxCharacterCount];
+            m_AggressionPool = new AggressionPool(sensoryDataConfig.MaxCharacterCount);
             m_BotUpdates = new BotUpdateCallback[sensoryDataConfig.MaxCharacterCount];
 
             var random = new CachedRandom();
@@ -44,6 +46,7 @@ namespace SharedCode.AI
                     random,
                     i,
                     Input,
+                    m_AggressionPool,
                     actionDistance,
                     skillConfigGroup,
                     SensoryData);
@@ -53,10 +56,18 @@ namespace SharedCode.AI
             }
         }
 
+        public void ResetData()
+        {
+            m_AggressionPool.Reset();
+            SensoryData.Reset();
+        }
+
         public void Update(float deltaTime)
         {
             for (int i = 0; i < m_BotUpdates.Length; i++)
                 m_BotUpdates[i](deltaTime);
+
+            m_AggressionPool.Update(deltaTime);
         }
     }
 }

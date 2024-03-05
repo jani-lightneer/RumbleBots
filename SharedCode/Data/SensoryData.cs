@@ -31,6 +31,18 @@ namespace SharedCode.Data
             m_ProjectileCount = 0;
         }
 
+        public void Reset()
+        {
+            GameAreaCenter = Vector2.Zero;
+            GameAreaRadius = 0;
+
+            // No need to fill CharacterDataEntry memory with zero
+            m_CharacterCount = 0;
+
+            // No need to fill ProjectileDataEntry memory with zero
+            m_ProjectileCount = 0;
+        }
+
         public ReadOnlySpan<CharacterDataEntry> ReadCharacters()
         {
             return m_CharacterDataEntries.Span.Slice(0, m_CharacterCount);
