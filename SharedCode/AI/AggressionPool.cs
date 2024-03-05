@@ -26,15 +26,18 @@ namespace SharedCode.AI
     // TODO: Refactor
     public class AggressionPool
     {
-        public readonly int MaxCharacterCount;
+        private const bool PRINT = false;
 
+        private const float TAG_DURATION = 500f;
+
+        public readonly int MaxCharacterCount;
         private readonly CharacterTarget[] m_CharacterTargets;
         private readonly CharacterTarget[] m_HuntTargets;
+        private float m_PrintDelay = 0;
 
         public AggressionPool(int maxCharacterCount)
         {
             MaxCharacterCount = maxCharacterCount;
-
             m_CharacterTargets = new CharacterTarget[maxCharacterCount];
             m_HuntTargets = new CharacterTarget[maxCharacterCount];
 
@@ -44,6 +47,8 @@ namespace SharedCode.AI
                 m_CharacterTargets[i] = characterTarget;
                 m_HuntTargets[i] = characterTarget;
             }
+
+            m_PrintDelay = 0;
         }
 
         public void Reset()
@@ -82,14 +87,21 @@ namespace SharedCode.AI
 
             Array.Sort(m_HuntTargets, CharacterTarget.Comparison);
 
-            /*
-            Console.WriteLine($"=== AGRO ===");
-            for (int i = 0; i < m_HuntTargets.Length; i++)
+            if (PRINT)
             {
-                Console.WriteLine(
-                    $"Character[{i}]: {m_HuntTargets[i].AggressionReceived}, Tagged: {m_HuntTargets[i].Tagged}");
+                m_PrintDelay -= deltaTime;
+                if (m_PrintDelay <= 0)
+                {
+                    Console.WriteLine($"=== AGRO ===");
+                    for (int i = 0; i < m_HuntTargets.Length; i++)
+                    {
+                        Console.WriteLine(
+                            $"Character[{i}]: {m_HuntTargets[i].AggressionReceived}, Tagged: {m_HuntTargets[i].Tagged}");
+                    }
+
+                    m_PrintDelay = 1000f;
+                }
             }
-            */
         }
 
         public void AddAggression(int from, int to)
@@ -106,19 +118,38 @@ namespace SharedCode.AI
 
         public int FindHuntTarget(int clientIndex)
         {
-            float huntThreshold = (1f / MaxCharacterCount) * 0.7f;
+            float lowPriorityHunt = (1f / MaxCharacterCount) * 0.8f;
+            float highPriorityHunt = (1f / MaxCharacterCount) * 0.4f;
+
             for (int i = 0; i < m_HuntTargets.Length; i++)
             {
                 if (clientIndex == m_HuntTargets[i].ClientIndex)
                     continue;
 
+                if (m_HuntTargets[i].AggressionReceived <= highPriorityHunt)
+                {
+                    // Allow double hunt
+                    if (m_HuntTargets[i].Tagged > TAG_DURATION)
+                        continue;
+
+                    return m_HuntTargets[i].ClientIndex;
+                }
+
+                if (m_HuntTargets[i].AggressionReceived <= lowPriorityHunt)
+                {
+                    if (m_HuntTargets[i].Tagged > 0)
+                        continue;
+
+                    return m_HuntTargets[i].ClientIndex;
+                }
+
+                /*
                 if (m_HuntTargets[i].Tagged > 0)
                     continue;
 
                 if (m_HuntTargets[i].AggressionReceived > huntThreshold)
                     continue;
-
-                return m_HuntTargets[i].ClientIndex;
+                */
             }
 
             return -1;
@@ -126,13 +157,7 @@ namespace SharedCode.AI
 
         public void TagHuntTarget(int targetIndex)
         {
-            for (int i = 0; i < m_HuntTargets.Length; i++)
-            {
-                if (targetIndex != m_HuntTargets[i].ClientIndex)
-                    continue;
-
-                m_HuntTargets[i].Tagged = 500f;
-            }
+            m_CharacterTargets[targetIndex].Tagged += TAG_DURATION;
         }
     }
 }

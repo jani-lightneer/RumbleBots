@@ -12,6 +12,8 @@ namespace SharedCode.AI
         public Vector2 Target;
     }
 
+    // TODO: More spells
+
     public class Bot
     {
         private const float MAX_PROJECTILE_DELAY = 400f;
@@ -115,7 +117,7 @@ namespace SharedCode.AI
 
             if (m_MoveCooldown <= 0f)
             {
-                m_MoveCooldown = m_Random.Next(500, 800);
+                m_MoveCooldown = m_Random.Next(1000, 1500);
 
                 /*
                 if (m_SkillMonitor.GetActiveTime(Skill.Dash) > 0)
@@ -384,8 +386,10 @@ namespace SharedCode.AI
 
                 float invertedDistance = Math.Clamp(m_ProjectileMaxRange - distance, 1, m_ProjectileMaxRange);
                 float receivedAggression = m_AggressionPool.GetCharacterReceivedAggression(i);
-                float invertedReceivedAggression = Math.Clamp(1f - receivedAggression, 0.01f, 1f);
-                float weight = invertedDistance * 10 * invertedReceivedAggression * invertedReceivedAggression;
+                float invertedReceivedAggression = Math.Clamp(1f - receivedAggression, 0.70f, 1f);
+
+                float weight = invertedDistance * 10;
+                weight *= invertedReceivedAggression * invertedReceivedAggression * invertedReceivedAggression;
 
                 m_SkillTargets[i].Weight = (int)weight;
                 if (m_SkillTargets[i].Weight < 0)
