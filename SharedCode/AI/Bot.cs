@@ -12,7 +12,9 @@ namespace SharedCode.AI
         public Vector2 Target;
     }
 
-    // TODO: Not register homing missle
+    // TODO: Missing defence triggers for homing projectiles
+    // TODO: Missing perfect defence triggers for rapid shot
+    // TODO: Missing defence triggers for none projectile blasts
 
     public class Bot
     {
