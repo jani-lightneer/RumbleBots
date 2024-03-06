@@ -26,6 +26,7 @@ namespace SharedCode.AI
         public readonly Bot[] Bots;
         private readonly AggressionPool m_AggressionPool;
         private readonly BotUpdateCallback[] m_BotUpdates;
+        private readonly CachedRandom m_Random;
 
         public BotManager(
             float actionDistance,
@@ -39,11 +40,11 @@ namespace SharedCode.AI
             m_AggressionPool = new AggressionPool(sensoryDataConfig.MaxCharacterCount);
             m_BotUpdates = new BotUpdateCallback[sensoryDataConfig.MaxCharacterCount];
 
-            var random = new CachedRandom();
+            m_Random = new CachedRandom();
             for (int i = 0; i < Bots.Length; i++)
             {
                 var (bot, botUpdate) = Bot.Create(
-                    random,
+                    m_Random,
                     i,
                     Input,
                     m_AggressionPool,
@@ -54,12 +55,75 @@ namespace SharedCode.AI
                 Bots[i] = bot;
                 m_BotUpdates[i] = botUpdate;
             }
+
+            ShuffleSkillLayout(1);
         }
 
         public void ResetData()
         {
             m_AggressionPool.Reset();
             SensoryData.Reset();
+
+            // No skill layout reset
+        }
+
+        public void ShuffleSkillLayout(int tier)
+        {
+            int[] layoutIds = SkillLayout.GetLayoutIds(tier);
+            Shuffle(layoutIds);
+
+            // TODO: Get random can be improved with knowing which bots are in the game
+            switch (tier)
+            {
+                case 1:
+                    for (int i = 0; i < Bots.Length; i++)
+                    {
+                        int id = layoutIds[i];
+                        Bots[i].SkillLayout = SkillLayout.GetTierOneLayout(id);
+                    }
+
+                    break;
+                case 2:
+                    for (int i = 0; i < Bots.Length; i++)
+                    {
+                        int id = layoutIds[i];
+                        Bots[i].SkillLayout = SkillLayout.GetTierTwoLayout(id);
+                    }
+
+                    break;
+                case 3:
+                    for (int i = 0; i < Bots.Length; i++)
+                    {
+                        int id = layoutIds[i];
+                        Bots[i].SkillLayout = SkillLayout.GetTierThreeLayout(id);
+                    }
+
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+
+            /*
+            Console.WriteLine("=== SHUFFLE ===");
+            for (int i = 0; i < Bots.Length; i++)
+            {
+                Console.WriteLine($"Picked: {Bots[i].SkillLayout.Id}");
+            }
+            */
+        }
+
+        private void Shuffle(int[] array)
+        {
+            int length = array.Length;
+            for (int i = 0; i < (length - 1); i++)
+            {
+                int randomIndex = i + m_Random.Next(0, length - i);
+
+                // ReSharper disable once SwapViaDeconstruction
+                int value = array[randomIndex];
+                array[randomIndex] = array[i];
+                array[i] = value;
+            }
         }
 
         public void Update(float deltaTime)

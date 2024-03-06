@@ -31,21 +31,21 @@ namespace SharedCode.AI
         private const float TAG_DURATION = 500f;
 
         public readonly int MaxCharacterCount;
+        public readonly CharacterTarget[] HuntTargets;
         private readonly CharacterTarget[] m_CharacterTargets;
-        private readonly CharacterTarget[] m_HuntTargets;
         private float m_PrintDelay = 0;
 
         public AggressionPool(int maxCharacterCount)
         {
             MaxCharacterCount = maxCharacterCount;
+            HuntTargets = new CharacterTarget[maxCharacterCount];
             m_CharacterTargets = new CharacterTarget[maxCharacterCount];
-            m_HuntTargets = new CharacterTarget[maxCharacterCount];
 
             for (int i = 0; i < m_CharacterTargets.Length; i++)
             {
                 var characterTarget = new CharacterTarget(i);
                 m_CharacterTargets[i] = characterTarget;
-                m_HuntTargets[i] = characterTarget;
+                HuntTargets[i] = characterTarget;
             }
 
             m_PrintDelay = 0;
@@ -85,7 +85,7 @@ namespace SharedCode.AI
                 }
             }
 
-            Array.Sort(m_HuntTargets, CharacterTarget.Comparison);
+            Array.Sort(HuntTargets, CharacterTarget.Comparison);
 
             if (PRINT)
             {
@@ -93,10 +93,10 @@ namespace SharedCode.AI
                 if (m_PrintDelay <= 0)
                 {
                     Console.WriteLine($"=== AGRO ===");
-                    for (int i = 0; i < m_HuntTargets.Length; i++)
+                    for (int i = 0; i < HuntTargets.Length; i++)
                     {
                         Console.WriteLine(
-                            $"Character[{i}]: {m_HuntTargets[i].AggressionReceived}, Tagged: {m_HuntTargets[i].Tagged}");
+                            $"Character[{i}]: {HuntTargets[i].AggressionReceived}, Tagged: {HuntTargets[i].Tagged}");
                     }
 
                     m_PrintDelay = 1000f;
@@ -121,26 +121,26 @@ namespace SharedCode.AI
             float lowPriorityHunt = (1f / MaxCharacterCount) * 0.8f;
             float highPriorityHunt = (1f / MaxCharacterCount) * 0.4f;
 
-            for (int i = 0; i < m_HuntTargets.Length; i++)
+            for (int i = 0; i < HuntTargets.Length; i++)
             {
-                if (clientIndex == m_HuntTargets[i].ClientIndex)
+                if (clientIndex == HuntTargets[i].ClientIndex)
                     continue;
 
-                if (m_HuntTargets[i].AggressionReceived <= highPriorityHunt)
+                if (HuntTargets[i].AggressionReceived <= highPriorityHunt)
                 {
                     // Allow double hunt
-                    if (m_HuntTargets[i].Tagged > TAG_DURATION)
+                    if (HuntTargets[i].Tagged > TAG_DURATION)
                         continue;
 
-                    return m_HuntTargets[i].ClientIndex;
+                    return HuntTargets[i].ClientIndex;
                 }
 
-                if (m_HuntTargets[i].AggressionReceived <= lowPriorityHunt)
+                if (HuntTargets[i].AggressionReceived <= lowPriorityHunt)
                 {
-                    if (m_HuntTargets[i].Tagged > 0)
+                    if (HuntTargets[i].Tagged > 0)
                         continue;
 
-                    return m_HuntTargets[i].ClientIndex;
+                    return HuntTargets[i].ClientIndex;
                 }
 
                 /*

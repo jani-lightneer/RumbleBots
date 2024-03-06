@@ -1,20 +1,26 @@
 namespace SharedCode.AI
 {
-    public class SkillMonitor
+    // TODO: Refactor name
+    public class SkillManager
     {
         private readonly float[] m_SkillActiveTimes;
+        private readonly float[] m_SkillRanges;
         private readonly float[] m_SkillDurations;
 
-        public SkillMonitor(SkillConfigGroup skillConfigGroup)
+        public SkillManager(SkillConfigGroup skillConfigGroup)
         {
             m_SkillActiveTimes = new float[skillConfigGroup.Skills.Length];
             m_SkillDurations = new float[skillConfigGroup.Skills.Length];
+            m_SkillRanges = new float[skillConfigGroup.Skills.Length];
 
             for (int i = 0; i < skillConfigGroup.Skills.Length; i++)
+            {
+                m_SkillRanges[i] = skillConfigGroup.Skills[i].Range;
                 m_SkillDurations[i] = skillConfigGroup.Skills[i].Duration;
+            }
         }
 
-        public void Start(Skill skill)
+        public void ActiveSkill(Skill skill)
         {
             m_SkillActiveTimes[(int)skill] = m_SkillDurations[(int)skill];
         }
@@ -32,6 +38,11 @@ namespace SharedCode.AI
         public float GetActiveTime(Skill skill)
         {
             return m_SkillActiveTimes[(int)skill];
+        }
+
+        public float GetRange(Skill skill)
+        {
+            return m_SkillRanges[(int)skill];
         }
     }
 }

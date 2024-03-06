@@ -4,9 +4,16 @@ namespace SharedCode.AI
 {
     public enum Skill
     {
-        Projectile,
-        Shield,
-        Dash
+        None,
+        EnergyProjectile_1,
+        EnergyProjectile_2,
+        EnergyProjectile_3,
+        RapidShot,
+        HomingMissile,
+        CounterShield,
+        Teleport,
+        Dash,
+        Stomp
     }
 
     public class SkillConfig
@@ -35,6 +42,13 @@ namespace SharedCode.AI
             int index = 0;
             foreach (Skill skill in Enum.GetValues(typeof(Skill)))
             {
+                if (skill == Skill.None)
+                {
+                    Skills[index] = new SkillConfig(Skill.None, 0, 0);
+                    index++;
+                    continue;
+                }
+
                 Skills[index] = FindSkillConfig(skill, skillConfigs);
                 index++;
             }

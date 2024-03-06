@@ -25,6 +25,9 @@ namespace GameClient
 
         public bool Ready(Skill skill)
         {
+            if (skill == Skill.None)
+                return false;
+
             return m_Timers[(int)skill] == 0;
         }
 
@@ -32,14 +35,31 @@ namespace GameClient
         {
             switch (skill)
             {
-                case Skill.Projectile:
+                case Skill.None:
+                    // Skip
+                    break;
+                case Skill.EnergyProjectile_1:
+                case Skill.EnergyProjectile_2:
+                case Skill.EnergyProjectile_3:
                     m_Timers[(int)skill] = 4000f;
                     break;
-                case Skill.Shield:
+                case Skill.RapidShot:
+                    m_Timers[(int)skill] = 3000f;
+                    break;
+                case Skill.HomingMissile:
+                    m_Timers[(int)skill] = 3000f;
+                    break;
+                case Skill.CounterShield:
                     m_Timers[(int)skill] = 8000f;
+                    break;
+                case Skill.Teleport:
+                    m_Timers[(int)skill] = 12000f;
                     break;
                 case Skill.Dash:
                     m_Timers[(int)skill] = 5000f;
+                    break;
+                case Skill.Stomp:
+                    m_Timers[(int)skill] = 3000f;
                     break;
             }
         }

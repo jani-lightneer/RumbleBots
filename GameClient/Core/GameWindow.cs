@@ -109,11 +109,27 @@ namespace GameClient.Core
 
             const float ACTION_DISTANCE = 80f;
 
+            /*
+             * EnergyProjectile,
+               RapidShot,
+               HomingMissile,
+               CounterShield,
+               Teleport,
+               Dash,
+               Stomp
+             */
+
             m_SkillConfigGroup = new SkillConfigGroup(new[]
             {
-                new SkillConfig(Skill.Projectile, PROJECTILE_MAX_RANGE, 0),
-                new SkillConfig(Skill.Shield, 0, 2000),
-                new SkillConfig(Skill.Dash, 0, 2000),
+                new SkillConfig(Skill.EnergyProjectile_1, PROJECTILE_MAX_RANGE, 0),
+                new SkillConfig(Skill.EnergyProjectile_2, PROJECTILE_MAX_RANGE, 0),
+                new SkillConfig(Skill.EnergyProjectile_3, PROJECTILE_MAX_RANGE, 0),
+                new SkillConfig(Skill.RapidShot, PROJECTILE_MAX_RANGE * 0.8f, 0),
+                new SkillConfig(Skill.HomingMissile, PROJECTILE_MAX_RANGE * 2, 0), // Not implemented
+                new SkillConfig(Skill.CounterShield, 0, 1700),
+                new SkillConfig(Skill.Teleport, PROJECTILE_MAX_RANGE, 0), // Probably not right range
+                new SkillConfig(Skill.Dash, 0, 1800),
+                new SkillConfig(Skill.Stomp, 8, 0), // Range => Radius
             });
 
             var sensoryDataConfig = new SensoryDataConfig()
@@ -201,7 +217,11 @@ namespace GameClient.Core
 
             switch (skill)
             {
-                case Skill.Projectile:
+                case Skill.EnergyProjectile_1:
+                case Skill.EnergyProjectile_2:
+                case Skill.EnergyProjectile_3:
+                case Skill.RapidShot:
+                case Skill.HomingMissile:
                     ref var character = ref m_Characters.Get(clientIndex);
                     ref var projectile = ref m_Projectiles.Allocate(out int index);
                     projectile.Owner = clientIndex;
@@ -214,11 +234,20 @@ namespace GameClient.Core
                     const float projectileLifetime = TIME_TO_REACH_MAX_RANGE * 1000f;
                     m_ProjectileDisposer.Add(index, projectileLifetime);
                     return true;
-                case Skill.Shield:
+                case Skill.CounterShield:
                     m_CharacterShieldBuffs[clientIndex] = m_SkillConfigGroup.Skills[(int)skill].Duration;
+                    return true;
+                case Skill.Teleport:
+                    ref var teleportCharacter = ref m_Characters.Get(clientIndex);
+                    teleportCharacter.Position = direction; // TODO: Refactor name
+                    Console.WriteLine("Teleport!");
                     return true;
                 case Skill.Dash:
                     m_CharacterHasteBuffs[clientIndex] = m_SkillConfigGroup.Skills[(int)skill].Duration;
+                    return true;
+                case Skill.Stomp:
+                    Console.WriteLine("Stomp!");
+                    // Not simulated
                     return true;
                 default:
                     throw new NotImplementedException();
