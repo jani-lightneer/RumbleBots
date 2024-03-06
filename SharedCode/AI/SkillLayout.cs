@@ -3,26 +3,25 @@ using SharedCode.Core;
 
 namespace SharedCode.AI
 {
+    // TODO: Refactor
     public class SkillLayout
     {
-        public const int TIER_ONE_LAYOUT_COUNT = 8;
-        public const int TIER_TWO_LAYOUT_COUNT = 6;
-        public const int TIER_THREE_LAYOUT_COUNT = 5;
+        public const int TIER_ONE_LAYOUT_COUNT = 14;
+        public const int TIER_TWO_LAYOUT_COUNT = 20;
+        public const int TIER_THREE_LAYOUT_COUNT = 16;
 
-        public readonly int Id;
+        // TODO: Rename to RangedSkill
         public readonly Skill ProjectileSkill;
         public readonly Skill DefenceSkill;
         public readonly Skill UtilitySkill;
 
-        public SkillLayout(int id, Skill projectileSkill, Skill defenceSkill, Skill utilitySkill)
+        public SkillLayout(Skill projectileSkill, Skill defenceSkill, Skill utilitySkill)
         {
-            Id = id;
             ProjectileSkill = projectileSkill;
             DefenceSkill = defenceSkill;
             UtilitySkill = utilitySkill;
         }
 
-        // TODO: Refactor
         public static int[] GetLayoutIds(int tier)
         {
             int layoutCount = 0;
@@ -48,89 +47,145 @@ namespace SharedCode.AI
             return layoutIds;
         }
 
-        public static SkillLayout GetTierOneLayout(int id)
-        {
-            switch (id % TIER_ONE_LAYOUT_COUNT)
-            {
-                case 0:
-                    return new SkillLayout(GetId(id, 1), Skill.EnergyProjectile_1, Skill.CounterShield, Skill.Dash);
-                case 1:
-                    return new SkillLayout(GetId(id, 1), Skill.EnergyProjectile_1, Skill.Teleport, Skill.Dash);
-                case 2:
-                    return new SkillLayout(GetId(id, 1), Skill.EnergyProjectile_1, Skill.CounterShield, Skill.Stomp);
-                case 3:
-                    return new SkillLayout(GetId(id, 1), Skill.RapidShot, Skill.CounterShield, Skill.Dash);
-                case 4:
-                    return new SkillLayout(GetId(id, 1), Skill.RapidShot, Skill.Teleport, Skill.Dash);
-                case 5:
-                    return new SkillLayout(GetId(id, 1), Skill.RapidShot, Skill.CounterShield, Skill.Stomp);
-                case 6:
-                    return new SkillLayout(GetId(id, 1), Skill.EnergyProjectile_2, Skill.CounterShield, Skill.None);
-                case 7:
-                    return new SkillLayout(GetId(id, 1), Skill.EnergyProjectile_2, Skill.Teleport, Skill.None);
-                case 8: // Bad ass
-                    return new SkillLayout(GetId(id, 1), Skill.EnergyProjectile_1, Skill.Teleport, Skill.Stomp);
-                default:
-                    throw new Exception("Unexpected error");
-            }
-        }
-
-        public static SkillLayout GetTierTwoLayout(int id)
-        {
-            switch (id % TIER_TWO_LAYOUT_COUNT)
-            {
-                case 0:
-                    return new SkillLayout(GetId(id, 2), Skill.EnergyProjectile_2, Skill.CounterShield, Skill.Dash);
-                case 1:
-                    return new SkillLayout(GetId(id, 2), Skill.EnergyProjectile_2, Skill.Teleport, Skill.Dash);
-                case 2:
-                    return new SkillLayout(GetId(id, 2), Skill.EnergyProjectile_2, Skill.CounterShield, Skill.Stomp);
-                case 3:
-                    return new SkillLayout(GetId(id, 2), Skill.HomingMissile, Skill.CounterShield, Skill.Dash);
-                case 4:
-                    return new SkillLayout(GetId(id, 2), Skill.RapidShot, Skill.Teleport, Skill.Dash);
-                case 5:
-                    return new SkillLayout(GetId(id, 2), Skill.HomingMissile, Skill.CounterShield, Skill.Stomp);
-                case 6: // Bad ass
-                    return new SkillLayout(GetId(id, 2), Skill.EnergyProjectile_2, Skill.Teleport, Skill.Stomp);
-                default:
-                    throw new Exception("Unexpected error");
-            }
-        }
-
-        public static SkillLayout GetTierThreeLayout(int id)
-        {
-            switch (id % TIER_THREE_LAYOUT_COUNT)
-            {
-                case 0:
-                    return new SkillLayout(GetId(id, 3), Skill.EnergyProjectile_3, Skill.CounterShield, Skill.Dash);
-                case 1:
-                    return new SkillLayout(GetId(id, 3), Skill.EnergyProjectile_3, Skill.Teleport, Skill.Dash);
-                case 2:
-                    return new SkillLayout(GetId(id, 3), Skill.EnergyProjectile_3, Skill.CounterShield, Skill.Stomp);
-                case 3:
-                    return new SkillLayout(GetId(id, 3), Skill.HomingMissile, Skill.CounterShield, Skill.Dash);
-                case 4:
-                    return new SkillLayout(GetId(id, 3), Skill.HomingMissile, Skill.CounterShield, Skill.Stomp);
-                case 5: // Bad ass
-                    return new SkillLayout(GetId(id, 2), Skill.EnergyProjectile_3, Skill.Teleport, Skill.Stomp);
-                default:
-                    throw new Exception("Unexpected error");
-            }
-        }
-
-        private static int GetId(int id, int tier)
+        public static SkillLayout GetLayout(int tier, int id)
         {
             switch (tier)
             {
                 case 1:
-                    return id;
+                    return GetTierOneLayout(id);
                 case 2:
-                    return id + TIER_ONE_LAYOUT_COUNT;
+                    return GetTierTwoLayout(id);
                 case 3:
-                    return id + TIER_ONE_LAYOUT_COUNT + TIER_TWO_LAYOUT_COUNT;
+                    return GetTierThreeLayout(id);
                 default:
                     throw new NotImplementedException();
+            }
+        }
+
+        private static SkillLayout GetTierOneLayout(int id)
+        {
+            switch (id % TIER_ONE_LAYOUT_COUNT)
+            {
+                case 0:
+                    return new SkillLayout(Skill.EnergyProjectile_1, Skill.CounterShield, Skill.Dash);
+                case 1:
+                    return new SkillLayout(Skill.EnergyProjectile_1, Skill.CounterShield, Skill.Stomp);
+                case 2:
+                    return new SkillLayout(Skill.EnergyProjectile_1, Skill.CounterShield, Skill.None);
+                case 3:
+                    return new SkillLayout(Skill.EnergyProjectile_1, Skill.Teleport, Skill.Dash);
+                case 4:
+                    return new SkillLayout(Skill.EnergyProjectile_1, Skill.Teleport, Skill.Stomp);
+                case 5:
+                    return new SkillLayout(Skill.EnergyProjectile_1, Skill.Teleport, Skill.None);
+                case 6:
+                    return new SkillLayout(Skill.RapidShot, Skill.CounterShield, Skill.Dash);
+                case 7:
+                    return new SkillLayout(Skill.RapidShot, Skill.CounterShield, Skill.Stomp);
+                case 8:
+                    return new SkillLayout(Skill.RapidShot, Skill.CounterShield, Skill.None);
+                case 9:
+                    return new SkillLayout(Skill.RapidShot, Skill.Teleport, Skill.Dash);
+                case 10:
+                    return new SkillLayout(Skill.RapidShot, Skill.Teleport, Skill.Stomp);
+                case 11:
+                    return new SkillLayout(Skill.RapidShot, Skill.Teleport, Skill.None);
+                case 12:
+                    return new SkillLayout(Skill.EnergyProjectile_2, Skill.CounterShield, Skill.None);
+                case 13:
+                    return new SkillLayout(Skill.EnergyProjectile_2, Skill.Teleport, Skill.None);
+                default:
+                    throw new Exception("Unexpected error");
+            }
+        }
+
+        private static SkillLayout GetTierTwoLayout(int id)
+        {
+            switch (id % TIER_TWO_LAYOUT_COUNT)
+            {
+                case 0:
+                    return new SkillLayout(Skill.EnergyProjectile_2, Skill.CounterShield, Skill.Dash);
+                case 1:
+                    return new SkillLayout(Skill.EnergyProjectile_2, Skill.CounterShield, Skill.Stomp);
+                case 2:
+                    return new SkillLayout(Skill.EnergyProjectile_2, Skill.CounterShield, Skill.None);
+                case 3:
+                    return new SkillLayout(Skill.EnergyProjectile_2, Skill.Teleport, Skill.Dash);
+                case 4:
+                    return new SkillLayout(Skill.EnergyProjectile_2, Skill.Teleport, Skill.Stomp);
+                case 5:
+                    return new SkillLayout(Skill.EnergyProjectile_2, Skill.Teleport, Skill.None);
+                case 6:
+                    return new SkillLayout(Skill.RapidShot, Skill.CounterShield, Skill.Dash);
+                case 7:
+                    return new SkillLayout(Skill.RapidShot, Skill.CounterShield, Skill.Stomp);
+                case 8:
+                    return new SkillLayout(Skill.RapidShot, Skill.CounterShield, Skill.None);
+                case 9:
+                    return new SkillLayout(Skill.RapidShot, Skill.Teleport, Skill.Dash);
+                case 10:
+                    return new SkillLayout(Skill.RapidShot, Skill.Teleport, Skill.Stomp);
+                case 11:
+                    return new SkillLayout(Skill.RapidShot, Skill.Teleport, Skill.None);
+                case 12:
+                    return new SkillLayout(Skill.EnergyProjectile_3, Skill.CounterShield, Skill.None);
+                case 13:
+                    return new SkillLayout(Skill.EnergyProjectile_3, Skill.Teleport, Skill.None);
+                case 14:
+                    return new SkillLayout(Skill.HomingMissile, Skill.CounterShield, Skill.Dash);
+                case 15:
+                    return new SkillLayout(Skill.HomingMissile, Skill.CounterShield, Skill.Stomp);
+                case 16:
+                    return new SkillLayout(Skill.HomingMissile, Skill.CounterShield, Skill.None);
+                case 17:
+                    return new SkillLayout(Skill.HomingMissile, Skill.Teleport, Skill.Dash);
+                case 18:
+                    return new SkillLayout(Skill.HomingMissile, Skill.Teleport, Skill.Stomp);
+                case 19:
+                    return new SkillLayout(Skill.HomingMissile, Skill.Teleport, Skill.None);
+                default:
+                    throw new Exception("Unexpected error");
+            }
+        }
+
+        private static SkillLayout GetTierThreeLayout(int id)
+        {
+            switch (id % TIER_THREE_LAYOUT_COUNT)
+            {
+                case 0:
+                    return new SkillLayout(Skill.EnergyProjectile_3, Skill.CounterShield, Skill.Dash);
+                case 1:
+                    return new SkillLayout(Skill.EnergyProjectile_3, Skill.CounterShield, Skill.Stomp);
+                case 2:
+                    return new SkillLayout(Skill.EnergyProjectile_3, Skill.Teleport, Skill.Dash);
+                case 3:
+                    return new SkillLayout(Skill.EnergyProjectile_3, Skill.Teleport, Skill.Stomp);
+                case 4:
+                    return new SkillLayout(Skill.RapidShot, Skill.CounterShield, Skill.Dash);
+                case 5:
+                    return new SkillLayout(Skill.RapidShot, Skill.CounterShield, Skill.Stomp);
+                case 6:
+                    return new SkillLayout(Skill.RapidShot, Skill.Teleport, Skill.Dash);
+                case 7:
+                    return new SkillLayout(Skill.RapidShot, Skill.Teleport, Skill.Stomp);
+                case 8:
+                    return new SkillLayout(Skill.HomingMissile, Skill.CounterShield, Skill.Dash);
+                case 9:
+                    return new SkillLayout(Skill.HomingMissile, Skill.CounterShield, Skill.Stomp);
+                case 10:
+                    return new SkillLayout(Skill.HomingMissile, Skill.Teleport, Skill.Dash);
+                case 11:
+                    return new SkillLayout(Skill.HomingMissile, Skill.Teleport, Skill.Stomp);
+                case 12:
+                    return new SkillLayout(Skill.EnergyProjectile_2, Skill.CounterShield, Skill.Dash);
+                case 13:
+                    return new SkillLayout(Skill.EnergyProjectile_2, Skill.CounterShield, Skill.Stomp);
+                case 14:
+                    return new SkillLayout(Skill.EnergyProjectile_2, Skill.Teleport, Skill.Dash);
+                case 15:
+                    return new SkillLayout(Skill.EnergyProjectile_2, Skill.Teleport, Skill.Stomp);
+                default:
+                    throw new Exception("Unexpected error");
             }
         }
     }

@@ -18,8 +18,6 @@ namespace SharedCode.AI
 
     public class Bot
     {
-        private const float MAX_PROJECTILE_DELAY = 400f;
-
         public bool Active;
 
         private readonly CachedRandom m_Random;
@@ -28,15 +26,11 @@ namespace SharedCode.AI
         private readonly float m_ActionDistance;
         private readonly SensoryData m_SensoryData;
 
-        private float m_ProjectileDelay;
         private readonly ActionTarget[] m_MoveTargets;
         private readonly ActionTarget[] m_SkillTargets;
         private int m_MoveTargetIndex;
         private float m_MoveCooldown;
 
-        // TODO: Refactor
-        // private readonly float m_ProjectileMaxRange;
-        // private Skill m_RangedSkill;
         public SkillLayout SkillLayout;
         private readonly SkillManager m_SkillManager;
         private readonly AggressionPool m_AggressionPool;
@@ -61,13 +55,11 @@ namespace SharedCode.AI
             m_ActionDistance = actionDistance;
             m_SensoryData = sensoryData;
 
-            m_ProjectileDelay = m_Random.NextFloat() * MAX_PROJECTILE_DELAY;
             m_MoveTargets = new ActionTarget[36];
             m_SkillTargets = new ActionTarget[aggressionPool.MaxCharacterCount];
             m_MoveTargetIndex = 0;
             m_MoveCooldown = 0;
 
-            // m_ProjectileMaxRange = skillConfigGroup.Skills[(int)Skill.Projectile].Range;
             SkillLayout = null;
             m_SkillManager = new SkillManager(skillConfigGroup);
             m_AggressionPool = aggressionPool;
@@ -75,22 +67,6 @@ namespace SharedCode.AI
             m_DistanceStack = new DistanceStack(3);
             m_LastUpdateMoveTarget = new ActionTarget();
         }
-
-        /*
-        public void SetRangedSkill(Skill rangedSkill)
-        {
-            switch (rangedSkill)
-            {
-                case Skill.EnergyProjectile:
-                case Skill.RapidShot:
-                case Skill.HomingMissile:
-                    m_RangedSkill = rangedSkill;
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
-        }
-        */
 
         private void Update(float deltaTime)
         {
@@ -105,36 +81,11 @@ namespace SharedCode.AI
 
             if (CheckProjectileTrajectories(m_ActionDistance * 4, characters, out float closestDistance))
             {
-                // TODO: Redo!
                 if (!UseDefenceSkill(characters, closestDistance)
                     && m_SkillManager.GetActiveTime(Skill.CounterShield) <= 200)
                 {
                     UseReactiveUtilitySkill(closestDistance);
                 }
-
-
-                /*
-                // Can cause Dash & Shield usage same time
-                bool shieldCooldown = true;
-
-                // TODO: Fine tune based world size
-                if (closestDistance <= m_ActionDistance * 3
-                    && m_Input.UseSkill(m_ClientIndex, Skill.CounterShield, Vector2.Zero))
-                {
-                    m_SkillManager.ActiveSkill(Skill.CounterShield);
-                    shieldCooldown = false;
-                }
-
-                // TODO: Fine tune based world size
-                if (shieldCooldown
-                    && closestDistance <= m_ActionDistance * 4
-                    && m_SkillManager.GetActiveTime(Skill.CounterShield) <= 200
-                    && m_Input.UseSkill(m_ClientIndex, Skill.Dash, Vector2.Zero))
-                {
-                    m_SkillManager.ActiveSkill(Skill.Dash);
-                    m_MoveCooldown = 0;
-                }
-                */
             }
 
             m_MoveCooldown -= deltaTime;
@@ -147,37 +98,19 @@ namespace SharedCode.AI
             }
 
             if (m_MoveCooldown <= 0f)
-            {
                 m_MoveCooldown = m_Random.Next(1000, 1500);
-
-                /*
-                if (m_SkillMonitor.GetActiveTime(Skill.Dash) > 0)
-                {
-                    // TODO: Fine tune based dash speed buff
-                    m_MoveCooldown = 250;
-                }
-                else
-                {
-                    // TODO: Fine tune based movement speed
-                    m_MoveCooldown = m_Random.Next(500, 800);
-                }
-                */
-            }
 
             m_MoveTargetIndex = RandomMoveTarget();
             if (m_MoveTargetIndex == -1)
             {
                 m_MoveTargets[0].Target = m_SensoryData.GameAreaCenter;
-                // m_MoveTargets[0].Target.X += (1f - m_Random.NextFloat() * 2f) * m_SensoryData.GameAreaRadius * 0.4f;
-                // m_MoveTargets[0].Target.Y += (1f - m_Random.NextFloat() * 2f) * m_SensoryData.GameAreaRadius * 0.4f;
                 m_MoveTargetIndex = 0;
             }
 
             if (!m_Input.Move(m_ClientIndex, m_MoveTargets[m_MoveTargetIndex].Target))
                 m_MoveCooldown = 0;
 
-            m_ProjectileDelay -= deltaTime;
-            if (m_ProjectileDelay <= 0f && FindPotentialSkillTargets(characters))
+            if (m_Random.NextFloat() > 0.95f && FindPotentialSkillTargets(characters))
             {
                 int targetIndex = RandomSkillTarget();
                 if (targetIndex != -1)
@@ -202,8 +135,6 @@ namespace SharedCode.AI
                     if (m_Input.UseSkill(m_ClientIndex, SkillLayout.ProjectileSkill, direction))
                         m_AggressionPool.AddAggression(m_ClientIndex, targetIndex);
                 }
-
-                m_ProjectileDelay = m_Random.NextFloat() * MAX_PROJECTILE_DELAY;
             }
 
             if (SkillLayout.UtilitySkill == Skill.Stomp)
@@ -236,11 +167,11 @@ namespace SharedCode.AI
                     }
 
                     break;
+                // TODO: Refactor
                 case Skill.Teleport:
                     if (closestDistance >= m_ActionDistance * 3)
                         return false;
 
-                    // TODO: Refactor
                     Vector2 teleportTarget = Vector2.Zero;
                     bool foundTeleportTarget = false;
 
@@ -258,7 +189,7 @@ namespace SharedCode.AI
 
                     if (foundTeleportTarget && m_Input.UseSkill(m_ClientIndex, Skill.Teleport, teleportTarget))
                     {
-                        m_SkillManager.ActiveSkill(Skill.CounterShield);
+                        m_SkillManager.ActiveSkill(Skill.Teleport);
                         return true;
                     }
 
@@ -374,20 +305,6 @@ namespace SharedCode.AI
             float actionDistance,
             bool allowTurning)
         {
-            // const int FORCE_TARGET_COUNT = 3;
-
-            // DistanceStack
-
-            /*
-            int[] bestForceMoveTargets = new int[FORCE_TARGET_COUNT];
-            float[] bestForceMoveTargetDistances = new float[FORCE_TARGET_COUNT];
-            for (int i = 0; i < FORCE_TARGET_COUNT; i++)
-            {
-                bestForceMoveTargets[i] = -1;
-                bestForceMoveTargetDistances[i] = float.MaxValue;
-            }
-            */
-
             float projectileMaxRange = m_SkillManager.GetRange(SkillLayout.ProjectileSkill);
 
             bool foundMoveTarget = false;
@@ -402,14 +319,7 @@ namespace SharedCode.AI
                 if (huntTarget != -1)
                 {
                     if (Distance(characters, m_ClientIndex, huntTarget) > maxHuntDistance)
-                    {
-                        // Console.WriteLine("Skip: Hunt!");
                         huntTarget = -1;
-                    }
-                    else
-                    {
-                        // Console.WriteLine("Hunt!");
-                    }
                 }
             }
 
@@ -457,7 +367,7 @@ namespace SharedCode.AI
 
                 m_MoveTargets[i].Weight = Math.Clamp(moveWeight, 1, 200);
 
-                // Decrease probability for U-turn
+                // TODO: Fine tune
                 if (m_LastUpdateMoveTarget.Weight != 0)
                 {
                     float distance = Geometry.Distance(m_LastUpdateMoveTarget.Target, m_MoveTargets[i].Target);
@@ -574,36 +484,6 @@ namespace SharedCode.AI
 
             return -1;
         }
-
-        /*
-        private int FindPotentialSkillTarget(
-            ReadOnlySpan<CharacterDataEntry> characters,
-            out float targetDistance)
-        {
-            int closestIndex = -1;
-            targetDistance = float.MaxValue;
-
-            for (int i = 0; i < characters.Length; i++)
-            {
-                if (i == m_ClientIndex || characters[i].Health <= 0)
-                    continue;
-
-                float distance = Distance(characters, m_ClientIndex, i);
-                if (distance <= m_ProjectileMaxRange)
-                    continue;
-
-                if (distance < targetDistance)
-                {
-                    closestIndex = i;
-                    targetDistance = distance;
-                }
-            }
-
-            // TODO: Multiply based on health?
-
-            return closestIndex;
-        }
-        */
 
         // TODO: Generic helper
         private float Distance(ReadOnlySpan<CharacterDataEntry> characters, int from, int to)

@@ -71,7 +71,6 @@ namespace SharedCode.Core
             return MathF.Sqrt(distanceX * distanceX + distanceY * distanceY);
         }
 
-
         // TODO: Fix this with multiplayer version
         public static Vector2 Direction(Vector2 a, Vector2 b)
         {

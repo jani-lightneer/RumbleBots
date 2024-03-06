@@ -1,6 +1,5 @@
 namespace SharedCode.AI
 {
-    // TODO: Refactor name
     public class SkillManager
     {
         private readonly float[] m_SkillActiveTimes;

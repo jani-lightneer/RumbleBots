@@ -62,18 +62,6 @@ namespace GameClient.Core
 
         public GameWindow()
         {
-            /*
-            for (int i = 0; i < 360; i++)
-            {
-                float radian = i / (float)360 * MathF.PI * 2;
-                float x = MathF.Sin(radian);
-                float y = MathF.Cos(radian);
-
-                Console.WriteLine($"[{i}] {x} : {y}");
-            }
-            */
-
-
             var graphicsDeviceManager = new GraphicsDeviceManager(this);
             graphicsDeviceManager.PreferredBackBufferWidth = SCREEN_WIDTH;
             graphicsDeviceManager.PreferredBackBufferHeight = SCREEN_HEIGHT;
@@ -109,16 +97,6 @@ namespace GameClient.Core
 
             const float ACTION_DISTANCE = 80f;
 
-            /*
-             * EnergyProjectile,
-               RapidShot,
-               HomingMissile,
-               CounterShield,
-               Teleport,
-               Dash,
-               Stomp
-             */
-
             m_SkillConfigGroup = new SkillConfigGroup(new[]
             {
                 new SkillConfig(Skill.EnergyProjectile_1, PROJECTILE_MAX_RANGE, 0),
@@ -144,6 +122,7 @@ namespace GameClient.Core
 
             // This should be used on round start
             m_BotManager.ResetData();
+            m_BotManager.ShuffleSkillLayout(3);
 
             m_GameAreaRadius = GAME_AREA_SIZE / 2f;
             m_GameArea = m_RenderContext.CreateTexture(GAME_AREA_SIZE, GAME_AREA_SIZE);
@@ -273,7 +252,6 @@ namespace GameClient.Core
                 character.Health = 4;
                 character.Position = position;
                 character.Direction = Vector2.Zero;
-                // character.AreaRadius = BOT_AREA_RADIUS;
 
                 // Every character is bot
                 m_BotManager.Bots[i].Active = true;

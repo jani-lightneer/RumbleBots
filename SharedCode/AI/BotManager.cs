@@ -69,47 +69,44 @@ namespace SharedCode.AI
 
         public void ShuffleSkillLayout(int tier)
         {
+            const int maxTeleportCount = 3;
+            const int maxHomingMissileCount = 2;
+
             int[] layoutIds = SkillLayout.GetLayoutIds(tier);
-            Shuffle(layoutIds);
-
-            // TODO: Get random can be improved with knowing which bots are in the game
-            switch (tier)
+            while (true)
             {
-                case 1:
-                    for (int i = 0; i < Bots.Length; i++)
-                    {
-                        int id = layoutIds[i];
-                        Bots[i].SkillLayout = SkillLayout.GetTierOneLayout(id);
-                    }
+                Shuffle(layoutIds);
+                GenerateBotLayout(layoutIds, tier);
 
-                    break;
-                case 2:
-                    for (int i = 0; i < Bots.Length; i++)
-                    {
-                        int id = layoutIds[i];
-                        Bots[i].SkillLayout = SkillLayout.GetTierTwoLayout(id);
-                    }
+                int teleportCount = 0;
+                int homingMissileCount = 0;
 
-                    break;
-                case 3:
-                    for (int i = 0; i < Bots.Length; i++)
-                    {
-                        int id = layoutIds[i];
-                        Bots[i].SkillLayout = SkillLayout.GetTierThreeLayout(id);
-                    }
+                for (int i = 0; i < Bots.Length; i++)
+                {
+                    if (Bots[i].SkillLayout.DefenceSkill == Skill.Teleport)
+                        teleportCount++;
 
-                    break;
-                default:
-                    throw new NotImplementedException();
+                    if (Bots[i].SkillLayout.ProjectileSkill == Skill.HomingMissile)
+                        homingMissileCount++;
+                }
+
+                if (teleportCount > maxTeleportCount)
+                    continue;
+
+                if (homingMissileCount > maxHomingMissileCount)
+                    continue;
+
+                break;
             }
+        }
 
-            /*
-            Console.WriteLine("=== SHUFFLE ===");
+        private void GenerateBotLayout(int[] layoutIds, int tier)
+        {
             for (int i = 0; i < Bots.Length; i++)
             {
-                Console.WriteLine($"Picked: {Bots[i].SkillLayout.Id}");
+                int id = layoutIds[i];
+                Bots[i].SkillLayout = SkillLayout.GetLayout(tier, id);
             }
-            */
         }
 
         private void Shuffle(int[] array)

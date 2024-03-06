@@ -142,14 +142,6 @@ namespace SharedCode.AI
 
                     return HuntTargets[i].ClientIndex;
                 }
-
-                /*
-                if (m_HuntTargets[i].Tagged > 0)
-                    continue;
-
-                if (m_HuntTargets[i].AggressionReceived > huntThreshold)
-                    continue;
-                */
             }
 
             return -1;
