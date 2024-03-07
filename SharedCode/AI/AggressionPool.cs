@@ -116,7 +116,7 @@ namespace SharedCode.AI
             return m_CharacterTargets[index].AggressionReceived;
         }
 
-        public int FindHuntTarget(int clientIndex)
+        public int FindHuntTarget(int clientIndex, bool allowHighPriorityHunt)
         {
             float lowPriorityHunt = (1f / MaxCharacterCount) * 0.8f;
             float highPriorityHunt = (1f / MaxCharacterCount) * 0.4f;
@@ -126,7 +126,7 @@ namespace SharedCode.AI
                 if (clientIndex == HuntTargets[i].ClientIndex)
                     continue;
 
-                if (HuntTargets[i].AggressionReceived <= highPriorityHunt)
+                if (allowHighPriorityHunt && HuntTargets[i].AggressionReceived <= highPriorityHunt)
                 {
                     // Allow double hunt
                     if (HuntTargets[i].Tagged > TAG_DURATION)

@@ -19,6 +19,7 @@ namespace SharedCode.AI
     public class Bot
     {
         public bool Active;
+        public float Difficulty;
 
         private readonly CachedRandom m_Random;
         private readonly int m_ClientIndex;
@@ -30,6 +31,7 @@ namespace SharedCode.AI
         private readonly ActionTarget[] m_SkillTargets;
         private int m_MoveTargetIndex;
         private float m_MoveCooldown;
+        private float m_TeleportComboCooldown;
 
         public SkillLayout SkillLayout;
         private readonly SkillManager m_SkillManager;
@@ -48,6 +50,7 @@ namespace SharedCode.AI
             SensoryData sensoryData)
         {
             Active = false;
+            Difficulty = 1;
 
             m_Random = random;
             m_ClientIndex = clientIndex;
@@ -59,6 +62,7 @@ namespace SharedCode.AI
             m_SkillTargets = new ActionTarget[aggressionPool.MaxCharacterCount];
             m_MoveTargetIndex = 0;
             m_MoveCooldown = 0;
+            m_TeleportComboCooldown = 0;
 
             SkillLayout = null;
             m_SkillManager = new SkillManager(skillConfigGroup);
@@ -78,6 +82,10 @@ namespace SharedCode.AI
                 return;
 
             m_SkillManager.Update(deltaTime);
+
+            m_TeleportComboCooldown -= deltaTime;
+            if (m_TeleportComboCooldown <= 0f)
+                m_TeleportComboCooldown = 0;
 
             if (CheckProjectileTrajectories(m_ActionDistance * 4, characters, out float closestDistance))
             {
@@ -110,7 +118,9 @@ namespace SharedCode.AI
             if (!m_Input.Move(m_ClientIndex, m_MoveTargets[m_MoveTargetIndex].Target))
                 m_MoveCooldown = 0;
 
-            if (m_Random.NextFloat() > 0.95f && FindPotentialSkillTargets(characters))
+            // TODO: Need to fine tune if tick rate is changed
+            float aimDifficultyCheck = 0.98f - Math.Clamp(Difficulty, 0, 1) * 0.04f;
+            if (m_Random.NextFloat() > aimDifficultyCheck && FindPotentialSkillTargets(characters))
             {
                 int targetIndex = RandomSkillTarget();
                 if (targetIndex != -1)
@@ -121,6 +131,9 @@ namespace SharedCode.AI
                     var target = characters[targetIndex].Position;
                     float range = targetDistance / projectileMaxRange;
                     float spread = Math.Clamp((range - 0.5f) * 2f, 0, 1f);
+
+                    float inverseDifficulty = 1f - Math.Clamp(Difficulty, 0, 1f);
+                    spread += inverseDifficulty * 3f;
 
                     float randomX = 1f - m_Random.NextFloat() * 2f;
                     float randomY = 1f - m_Random.NextFloat() * 2f;
@@ -133,7 +146,10 @@ namespace SharedCode.AI
                         target);
 
                     if (m_Input.UseSkill(m_ClientIndex, SkillLayout.ProjectileSkill, direction))
+                    {
                         m_AggressionPool.AddAggression(m_ClientIndex, targetIndex);
+                        m_TeleportComboCooldown = 400f;
+                    }
                 }
             }
 
@@ -154,6 +170,9 @@ namespace SharedCode.AI
 
         private bool UseDefenceSkill(ReadOnlySpan<CharacterDataEntry> characters, float closestDistance)
         {
+            if (0.5f + Difficulty >= m_Random.NextFloat() * 1.5f)
+                return false;
+
             switch (SkillLayout.DefenceSkill)
             {
                 case Skill.CounterShield:
@@ -170,6 +189,9 @@ namespace SharedCode.AI
                 // TODO: Refactor
                 case Skill.Teleport:
                     if (closestDistance >= m_ActionDistance * 3)
+                        return false;
+
+                    if (m_TeleportComboCooldown > 0)
                         return false;
 
                     Vector2 teleportTarget = Vector2.Zero;
@@ -189,6 +211,7 @@ namespace SharedCode.AI
 
                     if (foundTeleportTarget && m_Input.UseSkill(m_ClientIndex, Skill.Teleport, teleportTarget))
                     {
+                        m_TeleportComboCooldown = 300f; // Ranged attack has rng trigger
                         m_SkillManager.ActiveSkill(Skill.Teleport);
                         return true;
                     }
@@ -300,6 +323,7 @@ namespace SharedCode.AI
             return potentialProjectileCollision;
         }
 
+        // TODO: Fine tune movement based on projectiles?
         private bool FindPotentialMoveTargets(
             ReadOnlySpan<CharacterDataEntry> characters,
             float actionDistance,
@@ -315,7 +339,8 @@ namespace SharedCode.AI
 
             if (allowTurning)
             {
-                huntTarget = m_AggressionPool.FindHuntTarget(m_ClientIndex);
+                bool allowHighPriorityHunt = Difficulty >= 0.6f;
+                huntTarget = m_AggressionPool.FindHuntTarget(m_ClientIndex, allowHighPriorityHunt);
                 if (huntTarget != -1)
                 {
                     if (Distance(characters, m_ClientIndex, huntTarget) > maxHuntDistance)

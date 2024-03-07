@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -124,6 +127,12 @@ namespace GameClient.Core
             m_BotManager.ResetData();
             m_BotManager.ShuffleSkillLayout(3);
 
+            for (int i = 0; i < m_BotManager.Bots.Length; i++)
+            {
+                var bot = m_BotManager.Bots[i];
+                bot.Difficulty = 0.5f;
+            }
+
             m_GameAreaRadius = GAME_AREA_SIZE / 2f;
             m_GameArea = m_RenderContext.CreateTexture(GAME_AREA_SIZE, GAME_AREA_SIZE);
             Circle.Generate(m_GameArea, Color.White);
@@ -219,7 +228,6 @@ namespace GameClient.Core
                 case Skill.Teleport:
                     ref var teleportCharacter = ref m_Characters.Get(clientIndex);
                     teleportCharacter.Position = direction; // TODO: Refactor name
-                    Console.WriteLine("Teleport!");
                     return true;
                 case Skill.Dash:
                     m_CharacterHasteBuffs[clientIndex] = m_SkillConfigGroup.Skills[(int)skill].Duration;
@@ -345,8 +353,24 @@ namespace GameClient.Core
             var projectiles = m_BotManager.SensoryData.WriteProjectiles(m_Projectiles.Count);
             m_Projectiles.CopyTo(projectiles);
 
+            // m_DebugTimer.Start();
             m_BotManager.Update(deltaTime);
+
+            /*
+            m_DebugTimer.Stop();
+            m_DebugTimes.Add(m_DebugTimer.Elapsed.TotalMilliseconds);
+            m_DebugTimer.Reset();
+
+            if (m_DebugTimes.Count == 100)
+            {
+                Console.WriteLine(m_DebugTimes.Average());
+                m_DebugTimes.Clear();
+            }
+            */
         }
+
+        // private Stopwatch m_DebugTimer = new Stopwatch();
+        // private List<double> m_DebugTimes = new List<double>();
 
         private bool ProjectileCollision(ref ProjectileDataEntry projectile, out int characterIndex)
         {

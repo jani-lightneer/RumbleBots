@@ -75,6 +75,8 @@ namespace SharedCode.AI
             int[] layoutIds = SkillLayout.GetLayoutIds(tier);
             while (true)
             {
+                // Console.WriteLine("=== SHUFFLE ===");
+
                 Shuffle(layoutIds);
                 GenerateBotLayout(layoutIds, tier);
 
